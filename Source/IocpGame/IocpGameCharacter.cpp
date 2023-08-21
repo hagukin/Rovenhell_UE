@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
 
 #include "IocpGameCharacter.h"
 #include "Camera/CameraComponent.h"
@@ -12,7 +13,8 @@
 
 
 ////TEMP
-#include "NetHandler.h"
+#include "NetSession.h"
+#include "NetAddress.h"
 
 //////////////////////////////////////////////////////////////////////////
 // AIocpGameCharacter

@@ -1,10 +1,10 @@
 // Fill out your copyright notice in the Description page of Project Settings.
-#include "NetHandler.h"
+#include "NetBuffer.h"
 
-NetHandler::NetHandler()
+NetBuffer::NetBuffer()
 {
 }
 
-NetHandler::~NetHandler()
+NetBuffer::~NetBuffer()
 {
 }
