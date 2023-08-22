@@ -19,9 +19,10 @@ public:
 
 	bool InitSocket();
 	bool IsValid() { return (Socket != nullptr); }
+	bool IsConnected();
 
 	FSocket* const GetSocket() { return Socket; }
 
 private:
-	FSocket* Socket = nullptr;
+	FSocket* Socket;
 };

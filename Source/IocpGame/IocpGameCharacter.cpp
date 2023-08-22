@@ -12,10 +12,6 @@
 #include "EnhancedInputSubsystems.h"
 
 
-////TEMP
-#include "NetSession.h"
-#include "NetAddress.h"
-
 //////////////////////////////////////////////////////////////////////////
 // AIocpGameCharacter
 
@@ -69,12 +65,6 @@ void AIocpGameCharacter::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
-
-
-	///// TEMP
-	NetSession ns;
-	NetAddress addr(TEXT("127.0.0.1"), 7777); //TODO: 직접 주소 입력
-	ns.Connect(addr);
 }
 
 //////////////////////////////////////////////////////////////////////////
