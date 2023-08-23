@@ -27,14 +27,15 @@ public:
 
 	FRunnableThread* GetThread();
 	bool CreateThread();
+	void SetSession(NetSession* session);
 
 public:
 	FThreadSafeCounter StopCounter; // Notifier; 0이 아닐 경우 스레드 작동 정지
+	mutable FCriticalSection Lock;
+	TQueue<TSharedPtr<NetBuffer>> SendQueue;
 
 private:
-	mutable FCriticalSection Lock;
-	TQueue<NetBuffer> SendQueue;
-	TUniquePtr<NetSession> Session = nullptr;
-	const NetBuffer* SendPending = nullptr; // 현재 발송중인 버퍼 (Readonly)
+	NetSession* Session = nullptr;
+	TSharedPtr<NetBuffer> SendPending = nullptr; // 현재 발송중인 버퍼
 	FRunnableThread* Thread = nullptr;
 };

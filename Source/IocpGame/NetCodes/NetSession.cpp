@@ -11,12 +11,15 @@ NetSession::~NetSession()
 
 bool NetSession::Init()
 {
+	BufManager = MakeUnique<NetBufferManager>();
+	BufManager->Init();
+
 	NetSock = MakeUnique<NetSocket>();
 	if (NetSock->InitSocket())
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("NetSession: 소켓 생성 성공")));
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("소켓 생성 성공")));
 		Sender = MakeUnique<SendHandler>();
-		Receiver = MakeUnique<RecvHandler>();
+		Sender->SetSession(this);
 		return true;
 	}
 	return false;
@@ -80,9 +83,22 @@ const NetAddress& NetSession::GetPeerAddr()
 	return PeerAddr;
 }
 
-bool NetSession::Send(const NetBuffer& sendBuffer)
+bool NetSession::RegisterSend(TSharedPtr<NetBuffer> sendBuffer)
 {
-	return NetSock->GetSocket()->Send(sendBuffer.GetBuf(), sendBuffer.GetCnt(), bytesSent); // Nonblocking
+	while (!Sender->Lock.TryLock());
+	Sender->SendQueue.Enqueue(sendBuffer);
+	Sender->Lock.Unlock();
+	return true;
+}
+
+bool NetSession::Send(TSharedPtr<NetBuffer> sendBuffer)
+{
+	bytesSent = 0;
+	while (!NetSock->GetSocket()->Send(sendBuffer.Get()->GetBuf(), sendBuffer.Get()->GetSize(), bytesSent)) // TODO: 추가 안전장치 - 시간 제한 등
+	{
+		if (!NetSock->IsConnected() || !NetSock->IsValid()) return false;
+	}
+	return true;
 }
 
 bool NetSession::Recv()
@@ -104,7 +120,7 @@ bool NetSession::TryConnect(NetAddress connectAddr, int32 minutes, int32 seconds
 	{
 		if (Connect(connectAddr))
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("NetSession: 소켓 연결 성공 %s:%i"), *connectAddr.GetIp(), connectAddr.GetPort()));
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("소켓 연결 성공 %s:%i"), *connectAddr.GetIp(), connectAddr.GetPort()));
 			return true;
 		}
 	}

@@ -10,3 +10,11 @@ NetBufferManager::NetBufferManager()
 NetBufferManager::~NetBufferManager()
 {
 }
+
+void NetBufferManager::Init()
+{
+	SendPool = MakeUnique<NetBufferPool>(SendBufferSize, SendBufferPoolSize);
+	SendPool->Init();
+	RecvPool = MakeUnique<NetBufferPool>(RecvBufferSize, RecvBufferPoolSize);
+	RecvPool->Init();
+}

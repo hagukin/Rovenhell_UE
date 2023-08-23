@@ -11,9 +11,11 @@
 #include "NetAddress.h"
 #include "SendHandler.h"
 #include "RecvHandler.h"
+#include "NetBufferManager.h"
 
 class SendHandler;
 class RecvHandler;
+class NetBufferManager;
 
 /**
  * 이 host와 다른 host 하나와의 연결을 관리한다.
@@ -32,13 +34,17 @@ public:
 	bool KillSend(); // Sender 스레드를 Kill한다
 	bool KillRecv(); // Receiver 스레드를 Kill한다
 
-	bool Send(const NetBuffer& sendBuffer); // l or r value
+	bool RegisterSend(TSharedPtr<NetBuffer> sendBuffer);
+	bool Send(TSharedPtr<NetBuffer> sendBuffer); // 블로킹 (단 SendHandler 스레드에서 실행된다)
 	bool Recv();
 	bool TryConnect(NetAddress connectAddr, int32 minutes, int32 seconds); // waitForMs 밀리세컨드 동안 Connect를 시도하고 결과를 반환한다 (Blocking)
 	bool Connect(NetAddress connectAddr); // 논블로킹 Connect I/O의 결과를 반환한다
 	void Disconnect();
 
 	const NetAddress& GetPeerAddr();
+
+public:
+	TUniquePtr<NetBufferManager> BufManager = nullptr;
 
 private:
 	NetAddress PeerAddr;
@@ -47,5 +53,5 @@ private:
 	TUniquePtr<NetSocket> NetSock = nullptr;
 
 private:
-	int32 bytesSent; // Send()에서 사용; 현재 소켓이 Send 중일 경우, 몇 바이트를 발송 완료했는지
+	int32 bytesSent = 0; // Send()에서 사용; 현재 소켓이 Send 중일 경우, 몇 바이트를 발송 완료했는지
 };

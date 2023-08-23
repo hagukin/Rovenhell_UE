@@ -23,14 +23,15 @@ uint32 SendHandler::Run()
     {
         if (SendPending)
         {
-            while (!Session->Send(*SendPending));
-            SendPending = nullptr; // TQueue 내부 객체들은 TUniquePtr이라 원본 버퍼 메모리는 자동해제
+            if (!Session->Send(SendPending)) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("버퍼 Send 실패")));
+            else GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("버퍼 Send 성공")));
+            Session->BufManager->SendPool->PushBuffer(MoveTemp(SendPending));
+            SendPending = nullptr;
         }
         if (SendQueue.IsEmpty()) continue;
         if (Lock.TryLock())
         {
-            SendPending = SendQueue.Peek();
-            SendQueue.Pop();
+            SendQueue.Dequeue(SendPending);
             Lock.Unlock(); // 발송 준비만 해놓고 바로 락 해제
         }
     }
@@ -61,3 +62,7 @@ bool SendHandler::CreateThread()
     return (Thread != nullptr);
 }
 
+void SendHandler::SetSession(NetSession* session)
+{
+    Session = session;
+}

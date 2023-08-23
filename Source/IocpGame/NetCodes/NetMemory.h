@@ -14,5 +14,5 @@ public:
 	~NetMemory();
 
 	template<typename Type, typename... Args>
-	Type* Allocate(Args&&... args);
+	static Type* Allocate(Args&&... args);
 };

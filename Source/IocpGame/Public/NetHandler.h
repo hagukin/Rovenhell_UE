@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "../NetCodes/NetSession.h"
+#include "../NetCodes/NetBufferManager.h"
 #include "GameFramework/Actor.h"
 #include "NetHandler.generated.h"
 
@@ -24,6 +25,9 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 	void EndPlay(const EEndPlayReason::Type EndPlayReason);
+
+private:
+	void InitSession();
 
 private:
 	TUniquePtr<NetSession> Session;
