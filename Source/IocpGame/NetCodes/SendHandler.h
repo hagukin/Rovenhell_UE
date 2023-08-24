@@ -32,10 +32,10 @@ public:
 public:
 	FThreadSafeCounter StopCounter; // Notifier; 0이 아닐 경우 스레드 작동 정지
 	mutable FCriticalSection Lock;
-	TQueue<TSharedPtr<NetBuffer>> SendQueue;
+	TQueue<TSharedPtr<SendBuffer>> SendQueue; // Pop: Send 스레드; Push: 게임 스레드
 
 private:
 	NetSession* Session = nullptr;
-	TSharedPtr<NetBuffer> SendPending = nullptr; // 현재 발송중인 버퍼
+	TSharedPtr<SendBuffer> SendPending = nullptr; // 현재 발송중인 버퍼
 	FRunnableThread* Thread = nullptr;
 };

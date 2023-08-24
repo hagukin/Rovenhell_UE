@@ -31,4 +31,5 @@ private:
 
 private:
 	TUniquePtr<NetSession> Session;
+	TSharedPtr<RecvBuffer> RecvPending = nullptr; // 처리를 대기중인 패킷
 };

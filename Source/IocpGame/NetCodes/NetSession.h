@@ -34,9 +34,16 @@ public:
 	bool KillSend(); // Sender 스레드를 Kill한다
 	bool KillRecv(); // Receiver 스레드를 Kill한다
 
-	bool RegisterSend(TSharedPtr<NetBuffer> sendBuffer);
-	bool Send(TSharedPtr<NetBuffer> sendBuffer); // 블로킹 (단 SendHandler 스레드에서 실행된다)
-	bool Recv();
+	// NOTE:
+	// Pop의 경우 논블로킹으로 처리할 수 있어서 구현하지 않음, 직접 락 잡고 Pop해야 함
+	bool PushSendQueue(TSharedPtr<SendBuffer> sendBuffer); // 블로킹; Sender에게 Send를 요청할 버퍼를 대기열에 추가한다
+	bool Send(TSharedPtr<SendBuffer> sendBuffer); // 블로킹 (단 SendHandler 스레드에서 실행된다)
+	bool IsSendQueueEmpty();
+
+	bool PushRecvQueue(TSharedPtr<RecvBuffer> recvBuffer); // 블로킹; 게임 처리가 필요한 버퍼를 대기열에 추가한다
+	bool IsRecvQueueEmpty();
+	bool Recv(TSharedPtr<RecvBuffer> recvBuffer); // 블로킹 (단 RecvHandler 스레드에서 실행된다)
+
 	bool TryConnect(NetAddress connectAddr, int32 minutes, int32 seconds); // waitForMs 밀리세컨드 동안 Connect를 시도하고 결과를 반환한다 (Blocking)
 	bool Connect(NetAddress connectAddr); // 논블로킹 Connect I/O의 결과를 반환한다
 	void Disconnect();
@@ -45,8 +52,6 @@ public:
 
 public:
 	TUniquePtr<NetBufferManager> BufManager = nullptr;
-
-private:
 	NetAddress PeerAddr;
 	TUniquePtr<SendHandler> Sender = nullptr;
 	TUniquePtr<RecvHandler> Receiver = nullptr;

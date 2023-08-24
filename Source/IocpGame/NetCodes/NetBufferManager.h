@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NetBuffer.h"
 #include "NetBufferPool.h"
 
 /**
@@ -12,10 +13,10 @@ class IOCPGAME_API NetBufferManager
 {
 	enum
 	{
-		SendBufferSize = 512, // 버퍼 하나 당 바이트 크기
-		SendBufferPoolSize = 64, // 버퍼 풀에 몇 개의 버퍼를 가지고 시작할 것인가
-		RecvBufferSize = 512,
-		RecvBufferPoolSize = 64,
+		SendBufferSize = 2048, // 버퍼 하나 당 바이트 크기
+		SendBufferPoolSize = 1024, // 버퍼 풀에 몇 개의 버퍼를 가지고 시작할 것인가
+		RecvBufferSize = 2048,
+		RecvBufferPoolSize = 1024,
 	};
 
 public:
@@ -25,6 +26,6 @@ public:
 	void Init();
 
 public:
-	TUniquePtr<NetBufferPool> SendPool = nullptr;
-	TUniquePtr<NetBufferPool> RecvPool = nullptr;
+	TUniquePtr<NetBufferPool<SendBuffer>> SendPool = nullptr;
+	TUniquePtr<NetBufferPool<RecvBuffer>> RecvPool = nullptr;
 };

@@ -23,14 +23,20 @@ uint32 SendHandler::Run()
     {
         if (SendPending)
         {
-            if (!Session->Send(SendPending)) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("버퍼 Send 실패")));
-            else GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("버퍼 Send 성공")));
+            if (!Session->Send(SendPending))
+            {
+                GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("버퍼 Send 실패")));
+            }
+            else
+            {
+                //GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("버퍼 Send 성공")));
+            }
             Session->BufManager->SendPool->PushBuffer(MoveTemp(SendPending));
             SendPending = nullptr;
         }
-        if (SendQueue.IsEmpty()) continue;
-        if (Lock.TryLock())
+        if (!SendQueue.IsEmpty())
         {
+            while (!Lock.TryLock());
             SendQueue.Dequeue(SendPending);
             Lock.Unlock(); // 발송 준비만 해놓고 바로 락 해제
         }

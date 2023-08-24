@@ -24,5 +24,5 @@ public:
 	FSocket* const GetSocket() { return Socket; }
 
 private:
-	FSocket* Socket;
+	FSocket* Socket = nullptr;
 };

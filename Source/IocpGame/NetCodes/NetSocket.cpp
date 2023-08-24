@@ -7,6 +7,11 @@ NetSocket::NetSocket()
 
 NetSocket::~NetSocket()
 {
+	if (Socket)
+	{
+		Socket->Close();
+		delete Socket;
+	}
 }
 
 bool NetSocket::InitSocket()
@@ -21,5 +26,6 @@ bool NetSocket::InitSocket()
 
 bool NetSocket::IsConnected()
 {
+	if (!IsValid()) return false;
 	return Socket->GetConnectionState() == ESocketConnectionState::SCS_Connected;
 }

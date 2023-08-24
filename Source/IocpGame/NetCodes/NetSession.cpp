@@ -18,8 +18,12 @@ bool NetSession::Init()
 	if (NetSock->InitSocket())
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("소켓 생성 성공")));
+
 		Sender = MakeUnique<SendHandler>();
 		Sender->SetSession(this);
+
+		Receiver = MakeUnique<RecvHandler>();
+		Receiver->SetSession(this);
 		return true;
 	}
 	return false;
@@ -34,6 +38,7 @@ bool NetSession::Start()
 		// SendHandler와 RecvHandler 스레드를 가동한다.
 		ret &= StartSender();
 		// TODO: Receiver 가동
+		ret &= StartReceiver();
 	}
 	return ret;
 }
@@ -45,7 +50,7 @@ bool NetSession::StartSender()
 
 bool NetSession::StartReceiver()
 {
-	return false;
+	return Receiver->CreateThread();
 }
 
 bool NetSession::Kill()
@@ -83,7 +88,7 @@ const NetAddress& NetSession::GetPeerAddr()
 	return PeerAddr;
 }
 
-bool NetSession::RegisterSend(TSharedPtr<NetBuffer> sendBuffer)
+bool NetSession::PushSendQueue(TSharedPtr<SendBuffer> sendBuffer)
 {
 	while (!Sender->Lock.TryLock());
 	Sender->SendQueue.Enqueue(sendBuffer);
@@ -91,7 +96,7 @@ bool NetSession::RegisterSend(TSharedPtr<NetBuffer> sendBuffer)
 	return true;
 }
 
-bool NetSession::Send(TSharedPtr<NetBuffer> sendBuffer)
+bool NetSession::Send(TSharedPtr<SendBuffer> sendBuffer)
 {
 	bytesSent = 0;
 	while (!NetSock->GetSocket()->Send(sendBuffer.Get()->GetBuf(), sendBuffer.Get()->GetSize(), bytesSent)) // TODO: 추가 안전장치 - 시간 제한 등
@@ -101,9 +106,68 @@ bool NetSession::Send(TSharedPtr<NetBuffer> sendBuffer)
 	return true;
 }
 
-bool NetSession::Recv()
+bool NetSession::IsSendQueueEmpty()
 {
-	return false;
+	// Lock-free 
+	// 큐를 Pop하는 스레드가 하나이기 때문에 락을 잡지 않아도 비어있는지 상태 확인은 할 수 있다
+	return (Sender->SendQueue.IsEmpty());
+}
+
+bool NetSession::PushRecvQueue(TSharedPtr<RecvBuffer> recvBuffer)
+{
+	while (!Receiver->Lock.TryLock());
+	Receiver->RecvQueue.Enqueue(recvBuffer);
+	Receiver->Lock.Unlock();
+	return true;
+}
+
+bool NetSession::IsRecvQueueEmpty()
+{
+	// Lock-free 
+	// 큐를 Pop하는 스레드가 하나이기 때문에 락을 잡지 않아도 비어있는지 상태 확인은 할 수 있다
+	return (Receiver->RecvQueue.IsEmpty());
+}
+
+bool NetSession::Recv(TSharedPtr<RecvBuffer> recvBuffer)
+{
+	if (!NetSock->IsConnected() || !NetSock->IsValid())
+	{
+		UE_LOG(LogTemp, Error, TEXT("소켓이 연결되어 있지 않거나, 소켓이 유효하지 않습니다."));
+		return false;
+	}
+
+	int32 bytesRead = 0; // Recv 호출 한번으로 읽어들인 버퍼 크기
+	int32 bytesToRead = sizeof(PacketHeader);
+	bool receivedHeader = false;
+
+	while (bytesRead < bytesToRead)
+	{
+		if (bytesToRead > (int32)recvBuffer->GetLeftover())
+		{
+			UE_LOG(LogTemp, Fatal, TEXT("버퍼의 잔여 공간이 부족합니다, 현재까지 Recv한 버퍼는 유실됩니다."));
+			return false;
+		}
+		if (!NetSock->GetSocket()->Recv(recvBuffer->GetWriteCursor(), bytesToRead, bytesRead, ESocketReceiveFlags::None))
+		{
+			UE_LOG(LogTemp, Error, TEXT("소켓 연결 실패 혹은 알 수 없는 에러로 인해 패킷 수신에 실패하였습니다."));
+			return false;
+		}
+
+		recvBuffer->MoveWriteCursor(bytesRead);
+		recvBuffer->SetSize(recvBuffer->GetSize() + bytesRead);
+
+		bytesToRead -= bytesRead;
+		if (bytesToRead == 0)
+		{
+			if (!receivedHeader)
+			{
+				bytesToRead = (int32)((PacketHeader*)(recvBuffer->GetBuf()))->size - sizeof(PacketHeader);
+				receivedHeader = true;
+			}
+		}
+		bytesRead = 0;
+	}
+	return true;
 }
 
 bool has_passed(FDateTime t1, FDateTime t2, int32 minutes, int32 seconds)

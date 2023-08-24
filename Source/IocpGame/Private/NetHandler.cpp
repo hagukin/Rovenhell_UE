@@ -23,21 +23,33 @@ void ANetHandler::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	//// 테스트 발송 (TEMP)
+	//// 발송
+	// 테스트용 패킷 생성
 	T_BYTE sendTestData[10] = { T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65) }; // AAAAAAAAAA
 	T_BYTE sendTestData2[2] = { T_BYTE(66), T_BYTE(66) }; // BB
-	TSharedPtr<NetBuffer> writeBuf = Session->BufManager->SendPool->PopBuffer();
-
-	/// 테스트용 프로토콜
+	TSharedPtr<SendBuffer> writeBuf;
+	while (!writeBuf) writeBuf = Session->BufManager->SendPool->PopBuffer();
 	writeBuf->Write(sendTestData, sizeof(sendTestData));
 	writeBuf->Write(sendTestData2, sizeof(sendTestData2));
+	Session->PushSendQueue(writeBuf);
 
-	for (uint32 i = 0; i < writeBuf->GetSize(); ++i)
+	//// 수신
+	// 상대방이 DeltaTime 이상의 시간을 주기로 패킷을 보내야 틱에서 데이터를 제대로 처리할 수 있다
+	if (RecvPending)
 	{
-		FString x = FString::FromInt(writeBuf->GetBuf()[i]);
-		UE_LOG(LogTemp, Error, TEXT("%s"), *x);
+		// 버퍼 처리
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("틱 초: %f"), DeltaTime));
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("수신 패킷 크기: %d"), (int32)RecvPending->GetSize()));
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("수신 패킷: %s"), *BytesToString(RecvPending->GetData(), (int32)RecvPending->GetSize() - sizeof(PacketHeader))));
+		Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
+		RecvPending = nullptr;
 	}
-	Session->RegisterSend(writeBuf);
+	if (!Session->IsRecvQueueEmpty())
+	{
+		while (!Session->Receiver->Lock.TryLock());
+		Session->Receiver->RecvQueue.Dequeue(RecvPending);
+		Session->Receiver->Lock.Unlock();
+	}
 }
 
 void ANetHandler::EndPlay(const EEndPlayReason::Type EndPlayReason)
