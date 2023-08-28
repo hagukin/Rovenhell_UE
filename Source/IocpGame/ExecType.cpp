@@ -3,7 +3,7 @@
 
 ExecType::ExecType()
 {
-	this->HostType = ExecTypeEnum::CLIENT;
+	this->HostType = HostTypeEnum::CLIENT;
 }
 
 ExecType::~ExecType()

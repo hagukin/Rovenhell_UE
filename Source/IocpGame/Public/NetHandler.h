@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "../NetCodes/NetSession.h"
 #include "../NetCodes/NetBufferManager.h"
+#include "../PacketCodes/PacketHeader.h"
 #include "GameFramework/Actor.h"
 #include "NetHandler.generated.h"
 
@@ -28,6 +29,7 @@ public:
 
 private:
 	void InitSession();
+	
 
 private:
 	TUniquePtr<NetSession> Session;

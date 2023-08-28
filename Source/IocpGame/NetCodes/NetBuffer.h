@@ -7,25 +7,13 @@
 #include "Networking.h"
 #include "SocketSubsystem.h"
 #include "memory.h"
+#include "../PacketCodes/PacketHeader.h"
+#include "../IocpGameGameMode.h"
 
 #define MIN_BUFFER_CAPACITY sizeof(PacketHeader)
 #define MAX_BUFFER_CAPACITY sizeof(PacketHeader) + 4096 // 단일 버퍼가 가질 수 있는 최대 크기
 
 using T_BYTE = uint8; // BYTE 매크로와 중첩 방지를 위함
-
-
-struct PacketHeader
-{
-	uint32 size;
-	uint32 id;
-};
-
-enum PacketId
-{
-	DEFAULT,
-	TEST_PACKET
-};
-
 
 /**
  * host 간 정보를 주고 받을 때 사용하는 버퍼이다.

@@ -11,10 +11,6 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 
-
-//////////////////////////////////////////////////////////////////////////
-// AIocpGameCharacter
-
 AIocpGameCharacter::AIocpGameCharacter()
 {
 	// Set size for collision capsule

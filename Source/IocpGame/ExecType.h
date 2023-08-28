@@ -2,14 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-enum ExecTypeEnum
-{
-	CLIENT_HEADLESS,
-	CLIENT,
-	SERVER_HEADLESS,
-	SERVER
-};
+#include "Enumerations.h"
 
 /**
  * 실행 타입을 나타낸다.
@@ -19,11 +12,12 @@ class IOCPGAME_API ExecType
 {
 public:
 	ExecType();
-	ExecType(ExecTypeEnum type) : HostType(type) {};
+	ExecType(HostTypeEnum type) : HostType(type) {};
 	~ExecType();
 
-	ExecTypeEnum GetHostType() { return HostType; }
+	HostTypeEnum GetHostType() { return HostType; }
+	void SetHostType(HostTypeEnum type) { HostType = type; }
 
 private:
-	ExecTypeEnum HostType;
+	HostTypeEnum HostType;
 };

@@ -111,7 +111,15 @@ void SendBuffer::SetDefaultHeader()
 {
 	// 버퍼가 비었다고 가정
 	((PacketHeader*)Buffer)->size = sizeof(PacketHeader);
+
+	AIocpGameGameMode* gameMode = nullptr;
+	UGameplayStatics::GetGameMode(gameMode);
+	if (gameMode)
+	{
+		((PacketHeader*)Buffer)->senderType = gameMode->GetExecType()->GetHostType();
+	}
 	((PacketHeader*)Buffer)->id = PacketId::DEFAULT;
+
 	BufferSize = sizeof(PacketHeader); // += 가 아니라 = 임에 유의
 }
 

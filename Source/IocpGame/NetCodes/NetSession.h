@@ -12,6 +12,7 @@
 #include "SendHandler.h"
 #include "RecvHandler.h"
 #include "NetBufferManager.h"
+#include "../PacketCodes/PacketHeader.h"
 
 class SendHandler;
 class RecvHandler;
