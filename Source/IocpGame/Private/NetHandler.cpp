@@ -31,16 +31,19 @@ void ANetHandler::Tick(float DeltaTime)
 	while (!writeBuf) writeBuf = Session->BufManager->SendPool->PopBuffer();
 	writeBuf->Write(sendTestData, sizeof(sendTestData));
 	writeBuf->Write(sendTestData2, sizeof(sendTestData2));
+	FillPacketSenderTypeHeader(writeBuf);
+	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::CHAT_GLOBAL;
 	Session->PushSendQueue(writeBuf);
 
 	//// 수신
 	// 상대방이 DeltaTime 이상의 시간을 주기로 패킷을 보내야 틱에서 데이터를 제대로 처리할 수 있다
 	if (RecvPending)
 	{
-		// 버퍼 처리
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("틱 초: %f"), DeltaTime));
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("수신 패킷 크기: %d"), (int32)RecvPending->GetSize()));
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("수신 패킷: %s"), *BytesToString(RecvPending->GetData(), (int32)RecvPending->GetSize() - sizeof(PacketHeader))));
+		//PacketDebug(DeltaTime);
+		if (!DistributePendingPacket())
+		{
+			UE_LOG(LogTemp, Error, TEXT("수신 완료한 패킷 내용을 적용하는 과정에서 문제가 발생했습니다, 해당 패킷 내용은 무시됩니다."));
+		}
 		Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
 		RecvPending = nullptr;
 	}
@@ -66,4 +69,44 @@ void ANetHandler::InitSession()
 	bool connected = Session->TryConnect(serverAddr, 0, 1); // TODO: 만약 일정시간동안 시도를 반복하는 방식을 사용할 경우, BeginPlay에서 이를 처리하는 것은 좋지 못함, 비동기적 처리가 필요
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("커넥션 상태: %d"), (int)connected));
 	if (Session->Start()) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("세션이 정상적으로 작동중입니다.")));
+
+	ChatApplier = MakeUnique<ChatPacketApplier>();
+	ChatApplier->Init();
+}
+
+void ANetHandler::FillPacketSenderTypeHeader(TSharedPtr<SendBuffer> buffer)
+{
+	AIocpGameGameMode* gameMode = dynamic_cast<AIocpGameGameMode*>(UGameplayStatics::GetGameMode(this)); // downcasting
+	if (gameMode)
+	{
+		if (gameMode->GetExecType())
+		{
+			((PacketHeader*)(buffer->GetBuf()))->senderType = gameMode->GetExecType()->GetHostType();
+		}
+	}
+}
+
+void ANetHandler::PacketDebug(float DeltaTime)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("틱 초: %f"), DeltaTime));
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("수신 패킷 크기: %d"), (int32)RecvPending->GetSize()));
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("수신 패킷: %s"), *BytesToString(RecvPending->GetData(), (int32)RecvPending->GetSize() - sizeof(PacketHeader))));
+}
+
+bool ANetHandler::DistributePendingPacket()
+{
+	// RecvPending 버퍼를 적절한 Applier로 전달한다
+	const PacketHeader header = *((PacketHeader*)(RecvPending->GetBuf()));
+	bool applied = false;
+	switch (header.id)
+	{
+	case PacketId::CHAT_GLOBAL:
+		{
+			applied = ChatApplier->ApplyPacket(RecvPending);
+			break;
+		}
+	default:
+		break;
+	}
+	return applied;
 }

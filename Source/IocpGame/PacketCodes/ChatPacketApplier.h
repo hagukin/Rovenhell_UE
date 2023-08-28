@@ -14,5 +14,6 @@ public:
 	ChatPacketApplier();
 	~ChatPacketApplier();
 
+	bool Init();
 	bool ApplyPacket(TSharedPtr<RecvBuffer> packet) override;
 };

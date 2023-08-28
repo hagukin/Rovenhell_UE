@@ -14,4 +14,5 @@ struct PacketHeader
 enum PacketId
 {
 	DEFAULT,
+	CHAT_GLOBAL,
 };

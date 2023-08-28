@@ -110,14 +110,10 @@ bool SendBuffer::Write(T_BYTE* data, uint32 size)
 void SendBuffer::SetDefaultHeader()
 {
 	// 버퍼가 비었다고 가정
+	// 여기서 정의된 헤더값들은 유효하지 않기 때문에 반드시 발송 전에 적절한 헤더 값으로 교체해 주는 작업이 필요
+	// 단 size의 경우에는 Write() 과정에서 알아서 업데이트 되기 때문에 senderType과 id만 제대로 입력해주면 됨
 	((PacketHeader*)Buffer)->size = sizeof(PacketHeader);
-
-	AIocpGameGameMode* gameMode = nullptr;
-	UGameplayStatics::GetGameMode(gameMode);
-	if (gameMode)
-	{
-		((PacketHeader*)Buffer)->senderType = gameMode->GetExecType()->GetHostType();
-	}
+	((PacketHeader*)Buffer)->senderType = HostTypeEnum::NONE;
 	((PacketHeader*)Buffer)->id = PacketId::DEFAULT;
 
 	BufferSize = sizeof(PacketHeader); // += 가 아니라 = 임에 유의

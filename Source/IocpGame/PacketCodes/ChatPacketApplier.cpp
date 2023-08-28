@@ -11,7 +11,13 @@ ChatPacketApplier::~ChatPacketApplier()
 {
 }
 
+bool ChatPacketApplier::Init()
+{
+    return true;
+}
+
 bool ChatPacketApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet)
 {
-    return false;
+    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("채팅 %d : %s"), ((PacketHeader*)(packet->GetBuf()))->senderType, *BytesToString(packet->GetData(), (int32)packet->GetSize() - sizeof(PacketHeader))));
+    return true;
 }
