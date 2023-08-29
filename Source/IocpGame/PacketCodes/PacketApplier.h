@@ -11,6 +11,9 @@
 class IOCPGAME_API PacketApplier
 {
 public:
+	PacketApplier() {}
+	virtual ~PacketApplier() {}
+
 	virtual bool Init() { return true; }
 	virtual bool ApplyPacket(TSharedPtr<RecvBuffer> packet) abstract;
 };

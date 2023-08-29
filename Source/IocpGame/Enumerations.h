@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-enum HostTypeEnum
+enum HostTypeEnum : uint8
 {
 	NONE,
 	CLIENT_HEADLESS,

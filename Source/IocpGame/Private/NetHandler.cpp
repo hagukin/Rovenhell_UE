@@ -2,6 +2,7 @@
 
 
 #include "NetHandler.h"
+#include "../IocpGameGameMode.h"
 
 // Sets default values
 ANetHandler::ANetHandler()
@@ -63,27 +64,35 @@ void ANetHandler::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void ANetHandler::InitSession()
 {
+	// 세션 생성
 	Session = MakeUnique<NetSession>();
 	Session->Init();
-	NetAddress serverAddr(TEXT("127.0.0.1"), 7777);
-	bool connected = Session->TryConnect(serverAddr, 0, 1); // TODO: 만약 일정시간동안 시도를 반복하는 방식을 사용할 경우, BeginPlay에서 이를 처리하는 것은 좋지 못함, 비동기적 처리가 필요
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("커넥션 상태: %d"), (int)connected));
-	if (Session->Start()) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("세션이 정상적으로 작동중입니다.")));
 
+	// Applier 생성
 	ChatApplier = MakeUnique<ChatPacketApplier>();
 	ChatApplier->Init();
+
+	// 커넥션
+	uint8 hostType = HostTypeEnum::NONE;
+	GetGameHostType(hostType);
+
+	int32 port = 7777;
+	if (hostType == HostTypeEnum::CLIENT || hostType == HostTypeEnum::CLIENT_HEADLESS) port = 7777;
+	else if (hostType == HostTypeEnum::LOGIC_SERVER || hostType == HostTypeEnum::LOGIC_SERVER_HEADLESS) port = 8888;
+	NetAddress serverAddr(TEXT("127.0.0.1"), port);
+
+	bool connected = Session->TryConnect(serverAddr, 0, 1); // TODO: 만약 일정시간동안 시도를 반복하는 방식을 사용할 경우, BeginPlay에서 이를 처리하는 것은 좋지 못함, 비동기적 처리가 필요
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("커넥션 포트: %i, 커넥션 상태: %d"), port, (int)connected));
+
+	// 세션 작동
+	if (Session->Start()) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("세션이 정상적으로 작동중입니다.")));
 }
 
 void ANetHandler::FillPacketSenderTypeHeader(TSharedPtr<SendBuffer> buffer)
 {
-	AIocpGameGameMode* gameMode = dynamic_cast<AIocpGameGameMode*>(UGameplayStatics::GetGameMode(this)); // downcasting
-	if (gameMode)
-	{
-		if (gameMode->GetExecType())
-		{
-			((PacketHeader*)(buffer->GetBuf()))->senderType = gameMode->GetExecType()->GetHostType();
-		}
-	}
+	uint8 hostType = HostTypeEnum::NONE;
+	GetGameHostType(hostType);
+	((PacketHeader*)(buffer->GetBuf()))->senderType = hostType;
 }
 
 void ANetHandler::PacketDebug(float DeltaTime)
@@ -109,4 +118,16 @@ bool ANetHandler::DistributePendingPacket()
 		break;
 	}
 	return applied;
+}
+
+void ANetHandler::GetGameHostType(uint8& hostType)
+{
+	URovenhellGameInstance* game = Cast<URovenhellGameInstance, UGameInstance>(UGameplayStatics::GetGameInstance(GetWorld())); // downcasting
+	if (game)
+	{
+		if (game->GetExecType())
+		{
+			hostType = game->GetExecType()->GetHostType();
+		}
+	}
 }
