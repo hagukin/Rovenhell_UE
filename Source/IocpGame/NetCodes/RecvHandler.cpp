@@ -20,9 +20,15 @@ uint32 RecvHandler::Run()
 {
     FPlatformProcess::Sleep(0.3f); // 초기화 대기
     TSharedPtr<RecvBuffer> recvBuffer;
+    float count = 0;
     while (StopCounter.GetValue() == 0)
     {
-        while (!recvBuffer) recvBuffer = Session->BufManager->RecvPool->PopBuffer();
+        while (!recvBuffer)
+        {
+            FPlatformProcess::Sleep(0.01f * pow(2.0f, count++)); // 대기 시간 증가
+            recvBuffer = Session->BufManager->RecvPool->PopBuffer();
+        }
+        count = 0;
         if (!Session->Recv(recvBuffer))
         {
             // 수신 못했을 경우 새로 재시도, 이때 버퍼에 일부 데이터가 채워졌을 가능성이 있기 때문에 버퍼 리셋

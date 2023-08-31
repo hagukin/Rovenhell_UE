@@ -29,7 +29,7 @@ void ANetHandler::Tick(float DeltaTime)
 	T_BYTE sendTestData[10] = { T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65) }; // AAAAAAAAAA
 	T_BYTE sendTestData2[2] = { T_BYTE(66), T_BYTE(66) }; // BB
 	TSharedPtr<SendBuffer> writeBuf;
-	while (!writeBuf) writeBuf = Session->BufManager->SendPool->PopBuffer();
+	while (!writeBuf) writeBuf = Session->BufManager->SendPool->PopBuffer(); // TODO: Receiver에서 처리하듯이 대기 시간 늘려가면서 버퍼 가져올때까지 스레드 대기하도록 만들기
 	writeBuf->Write(sendTestData, sizeof(sendTestData));
 	writeBuf->Write(sendTestData2, sizeof(sendTestData2));
 	FillPacketSenderTypeHeader(writeBuf);
