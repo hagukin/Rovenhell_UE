@@ -2,6 +2,7 @@
 
 
 #include "ChatPacketApplier.h"
+#include "MyUtility.h"
 
 ChatPacketApplier::ChatPacketApplier()
 {
@@ -18,6 +19,6 @@ bool ChatPacketApplier::Init()
 
 bool ChatPacketApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet)
 {
-    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("채팅 %d : %s"), ((PacketHeader*)(packet->GetBuf()))->senderType, *BytesToString(packet->GetData(), (int32)packet->GetSize() - sizeof(PacketHeader))));
+    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("채팅 %d : %s"), ((PacketHeader*)(packet->GetBuf()))->senderType, *MyBytesToString(packet->GetData(), (int32)packet->GetSize() - sizeof(PacketHeader))));
     return true;
 }
