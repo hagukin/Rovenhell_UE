@@ -30,16 +30,19 @@ public:
 	void EndPlay(const EEndPlayReason::Type EndPlayReason);
 
 private:
-	void InitSession();
+	void Init();
 	void FillPacketSenderTypeHeader(TSharedPtr<SendBuffer> buffer);
 	void PacketDebug(float DeltaTime);
 	bool DistributePendingPacket(); // RecvPending 패킷을 적절한 Applier에게 전달하고, 처리가 완료되면 버퍼 풀에 버퍼를 반환한다
-	void GetGameHostType(uint8& hostType);
+	void SetGameHostType();
 	
+	void Tick_UEClient();
+	void Tick_UEServer();
 
 private:
 	TUniquePtr<NetSession> Session;
 	TSharedPtr<RecvBuffer> RecvPending = nullptr; // 처리를 대기중인 패킷
+	HostTypeEnum HostType = HostTypeEnum::NONE;
 
 	TUniquePtr<ChatPacketApplier> ChatApplier;
 };
