@@ -61,6 +61,18 @@ void AIocpGameCharacter::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
+
+	// TEMP
+	// NetHandler 레퍼런스 가져오기
+	AActor* temp =  UGameplayStatics::GetActorOfClass(GetWorld(), ANetHandler::StaticClass());
+	if (!temp)
+	{
+		UE_LOG(LogTemp, Error, TEXT("ANetHandler 클래스의 액터를 찾을 수 없습니다."));
+	}
+	else
+	{
+		NetHandler = Cast<ANetHandler>(temp);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -72,8 +84,9 @@ void AIocpGameCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent)) {
 		
 		//Jumping
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Triggered, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Triggered, this, &AIocpGameCharacter::Jump);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AIocpGameCharacter::JumpStart); // 누른 최초 1회
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &AIocpGameCharacter::StopJumping);
 
 		//Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AIocpGameCharacter::Move);
@@ -121,6 +134,70 @@ void AIocpGameCharacter::Look(const FInputActionValue& Value)
 	}
 }
 
+void AIocpGameCharacter::JumpStart() // 테스트용 함수; OnTrigger와 다르게 시작시점 딱 한 틱에서 실행
+{
+	switch (NetHandler->GetHostType())
+	{
+		case HostTypeEnum::CLIENT:
+		case HostTypeEnum::CLIENT_HEADLESS:
+			{
+				Jump_UEClient();
+				break;
+			}
+		case HostTypeEnum::LOGIC_SERVER:
+		case HostTypeEnum::LOGIC_SERVER_HEADLESS:
+			{
+				Jump_UEServer();
+				break;
+			}
+		case HostTypeEnum::NONE:
+		default:
+			break;
+	}
+}
+
+void AIocpGameCharacter::Jump_UEClient()
+{
+	// 이벤트 패킷 전송 (테스트를 위해 임시로 채팅 패킷으로 작성)
+	T_BYTE testJumpPacket[4] = { T_BYTE(74), T_BYTE(85), T_BYTE(77), T_BYTE(80) }; //JUMP
+	TSharedPtr<SendBuffer> writeBuf;
+	while (!writeBuf) writeBuf = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
+	writeBuf->Write(testJumpPacket, sizeof(testJumpPacket));
+	NetHandler->FillPacketSenderTypeHeader(writeBuf);
+	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::CLIENT_EVENT;
+	((PacketHeader*)(writeBuf->GetBuf()))->tick = 99999; //Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
+	NetHandler->GetSessionShared()->PushSendQueue(writeBuf);
 
 
 
+
+
+	///// TESTING
+	TSharedPtr<SendBuffer> writeBuf2;
+	while (!writeBuf2) writeBuf2 = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
+	writeBuf2->Write(testJumpPacket, sizeof(testJumpPacket));
+	NetHandler->FillPacketSenderTypeHeader(writeBuf2);
+	((PacketHeader*)(writeBuf2->GetBuf()))->id = PacketId::CLIENT_EVENT;
+	((PacketHeader*)(writeBuf2->GetBuf()))->tick = 99999;
+	NetHandler->GetSessionShared()->PushSendQueue(writeBuf2);
+
+	TSharedPtr<SendBuffer> writeBuf3;
+	while (!writeBuf3) writeBuf3 = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
+	writeBuf3->Write(testJumpPacket, sizeof(testJumpPacket));
+	NetHandler->FillPacketSenderTypeHeader(writeBuf3);
+	((PacketHeader*)(writeBuf3->GetBuf()))->id = PacketId::CLIENT_EVENT;
+	((PacketHeader*)(writeBuf3->GetBuf()))->tick = 99999;
+	NetHandler->GetSessionShared()->PushSendQueue(writeBuf3);
+
+	TSharedPtr<SendBuffer> writeBuf4;
+	while (!writeBuf4) writeBuf4 = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
+	writeBuf4->Write(testJumpPacket, sizeof(testJumpPacket));
+	NetHandler->FillPacketSenderTypeHeader(writeBuf4);
+	((PacketHeader*)(writeBuf4->GetBuf()))->id = PacketId::CLIENT_EVENT;
+	((PacketHeader*)(writeBuf4->GetBuf()))->tick = 88888;
+	NetHandler->GetSessionShared()->PushSendQueue(writeBuf4);
+}
+
+void AIocpGameCharacter::Jump_UEServer()
+{
+}

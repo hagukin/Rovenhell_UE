@@ -27,7 +27,7 @@ public:
 	NetSession();
 	~NetSession();
 
-	bool Init(); // 내부 요소를 초기화하고 성공 여부를 반환한다
+	bool Init(HostTypeEnum hostType); // 내부 요소를 초기화하고 성공 여부를 반환한다
 	bool Start(); // 세션 작동을 개시하고 성공 여부를 반환한다
 	bool StartSender(); // Sender 스레드를 생성하고 동작을 개시한다
 	bool StartReceiver(); // Receiver 스레드를 생성하고 동작을 개시한다
@@ -36,7 +36,7 @@ public:
 	bool KillRecv(); // Receiver 스레드를 Kill한다
 
 	// NOTE:
-	// Pop의 경우 논블로킹으로 처리할 수 있어서 구현하지 않음, 직접 락 잡고 Pop해야 함
+	// Pop의 경우 직접 락 잡고 Pop해야 함, 혹은 TQueue의 경우 lock-free
 	bool PushSendQueue(TSharedPtr<SendBuffer> sendBuffer); // 블로킹; Sender에게 Send를 요청할 버퍼를 대기열에 추가한다
 	bool Send(TSharedPtr<SendBuffer> sendBuffer); // 블로킹 (단 SendHandler 스레드에서 실행된다)
 	bool IsSendQueueEmpty();
@@ -49,7 +49,7 @@ public:
 	bool Connect(NetAddress connectAddr); // 논블로킹 Connect I/O의 결과를 반환한다
 	void Disconnect();
 
-	const NetAddress& GetPeerAddr();
+	const NetAddress& GetPeerAddr() const;
 
 public:
 	TUniquePtr<NetBufferManager> BufManager = nullptr;
@@ -60,4 +60,5 @@ public:
 
 private:
 	int32 bytesSent = 0; // Send()에서 사용; 현재 소켓이 Send 중일 경우, 몇 바이트를 발송 완료했는지
+	HostTypeEnum HostType;
 };

@@ -115,6 +115,7 @@ void SendBuffer::SetDefaultHeader()
 	((PacketHeader*)Buffer)->size = sizeof(PacketHeader);
 	((PacketHeader*)Buffer)->senderType = HostTypeEnum::NONE;
 	((PacketHeader*)Buffer)->id = PacketId::DEFAULT;
+	((PacketHeader*)Buffer)->tick = 0;
 
 	BufferSize = sizeof(PacketHeader); // += 가 아니라 = 임에 유의
 }

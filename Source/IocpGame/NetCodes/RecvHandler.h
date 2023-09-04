@@ -30,10 +30,12 @@ public:
 
 public:
 	FThreadSafeCounter StopCounter; // Notifier; 0이 아닐 경우 스레드 작동 정지
+
 	mutable FCriticalSection Lock;
-	TQueue<TSharedPtr<RecvBuffer>> RecvQueue; // Pop: 게임 스레드, Push: Recv 스레드
+	TArray<RecvPriorityQueueNode> RecvPriorityQueue; // Sender와 다르게 Priority Queue 사용
 
 private:
+	/* UE SERVER */
 	NetSession* Session = nullptr;
 	FRunnableThread* Thread = nullptr;
 };

@@ -6,4 +6,5 @@
 URovenhellGameInstance::URovenhellGameInstance()
 {
 	GameExecType = MakeShared<ExecType>();
+	TickCounter = MakeUnique<GameTickCounter>();
 }

@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
+#include "NetHandler.h"
+#include "NetCodes/NetBuffer.h"
 #include "IocpGameCharacter.generated.h"
 
 
@@ -39,7 +41,6 @@ class AIocpGameCharacter : public ACharacter
 
 public:
 	AIocpGameCharacter();
-	
 
 protected:
 
@@ -48,7 +49,11 @@ protected:
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
-			
+
+	// 네트워크 테스팅용
+	void JumpStart();
+	void Jump_UEClient();
+	void Jump_UEServer();
 
 protected:
 	// APawn interface
@@ -62,5 +67,8 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
+private:
+	ANetHandler* NetHandler = nullptr;
 };
 

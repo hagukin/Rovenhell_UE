@@ -36,9 +36,7 @@ uint32 SendHandler::Run()
         }
         if (!SendQueue.IsEmpty())
         {
-            while (!Lock.TryLock());
             SendQueue.Dequeue(SendPending);
-            Lock.Unlock(); // 발송 준비만 해놓고 바로 락 해제
         }
     }
     return 0;

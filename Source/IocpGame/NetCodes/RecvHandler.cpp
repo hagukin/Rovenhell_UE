@@ -13,6 +13,7 @@ RecvHandler::~RecvHandler()
 
 bool RecvHandler::Init()
 {
+    RecvPriorityQueue.Heapify();
     return true;
 }
 

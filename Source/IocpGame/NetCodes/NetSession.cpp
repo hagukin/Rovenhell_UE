@@ -9,8 +9,10 @@ NetSession::~NetSession()
 {
 }
 
-bool NetSession::Init()
+bool NetSession::Init(HostTypeEnum hostType)
 {
+	HostType = hostType;
+
 	BufManager = MakeUnique<NetBufferManager>();
 	BufManager->Init();
 
@@ -20,9 +22,11 @@ bool NetSession::Init()
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("소켓 생성 성공")));
 
 		Sender = MakeUnique<SendHandler>();
+		Sender->Init();
 		Sender->SetSession(this);
 
 		Receiver = MakeUnique<RecvHandler>();
+		Receiver->Init();
 		Receiver->SetSession(this);
 		return true;
 	}
@@ -81,7 +85,7 @@ bool NetSession::KillRecv()
 	return false;
 }
 
-const NetAddress& NetSession::GetPeerAddr()
+const NetAddress& NetSession::GetPeerAddr() const
 {
 	// 이 소켓과 연결되어있는 상대방의 주소와 포트를 반환한다.
 	// 사용 전 소켓의 Connection 여부 확인이 필요하다.
@@ -90,9 +94,7 @@ const NetAddress& NetSession::GetPeerAddr()
 
 bool NetSession::PushSendQueue(TSharedPtr<SendBuffer> sendBuffer)
 {
-	while (!Sender->Lock.TryLock());
 	Sender->SendQueue.Enqueue(sendBuffer);
-	Sender->Lock.Unlock();
 	return true;
 }
 
@@ -115,17 +117,18 @@ bool NetSession::IsSendQueueEmpty()
 
 bool NetSession::PushRecvQueue(TSharedPtr<RecvBuffer> recvBuffer)
 {
+	RecvPriorityQueueNode node = { recvBuffer };
 	while (!Receiver->Lock.TryLock());
-	Receiver->RecvQueue.Enqueue(recvBuffer);
+	Receiver->RecvPriorityQueue.HeapPush(node);
 	Receiver->Lock.Unlock();
 	return true;
 }
 
 bool NetSession::IsRecvQueueEmpty()
 {
-	// Lock-free 
+	return (Receiver->RecvPriorityQueue.IsEmpty());
+	// Lock-free
 	// 큐를 Pop하는 스레드가 하나이기 때문에 락을 잡지 않아도 비어있는지 상태 확인은 할 수 있다
-	return (Receiver->RecvQueue.IsEmpty());
 }
 
 bool NetSession::Recv(TSharedPtr<RecvBuffer> recvBuffer)

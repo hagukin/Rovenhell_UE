@@ -33,16 +33,13 @@ public:
 
 	void PushBuffer(TSharedPtr<BufferType> buffer) // 사용 완료된 버퍼를 반납한다
 	{
-		while (!Lock.TryLock());
 		buffer->Reset(); // send 버퍼의 경우 default 헤더를 다시 만들어준다
 		Pool.Enqueue(buffer);
-		Lock.Unlock();
 		return;
 	}
 
 	TSharedPtr<BufferType> PopBuffer() // 사용하기 위한 버퍼를 가져온다; 만약 여유 버퍼가 부족하면 nullptr를 반환한다
 	{
-		while (!Lock.TryLock());
 		TSharedPtr<BufferType> out = nullptr;
 		if (!Pool.Dequeue(out))
 		{
@@ -53,7 +50,6 @@ public:
 			// 특히 게임에서 많은 연산이 필요한 시점에서 틱 속도가 느려지고 프레임 드랍이 발생할 경우 충분한 버퍼 풀 크기를 확보하는 것은 더욱 중요하다.
 			// 다만, 아무리 버퍼 풀 크기를 늘려도 프레임 저하가 계속 유지되어 큐 pop보다 push 속도가 빨라진다면 결국 어느 시점엔 버퍼 풀은 텅 비게 된다.
 		}
-		Lock.Unlock();
 		return out;
 	}
 
