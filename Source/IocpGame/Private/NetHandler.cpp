@@ -118,7 +118,9 @@ bool ANetHandler::DistributePendingPacket()
 			applied = ChatApplier->ApplyPacket(RecvPending);
 			break;
 		}
-	case PacketId::CLIENT_EVENT:
+	case PacketId::CLIENT_EVENT_ON_RECV:
+	case PacketId::CLIENT_EVENT_ON_TICK_STRICT:
+	case PacketId::CLIENT_EVENT_ON_TICK_LOOSE:
 		{
 			applied = ClEventApplier->ApplyPacket(RecvPending);
 			break;
@@ -182,8 +184,8 @@ void ANetHandler::Tick_UEClient(float DeltaTime)
 void ANetHandler::Tick_UEServer(float DeltaTime)
 {
 	AccumulatedTickTime += DeltaTime;
-
-	if ((AccumulatedTickTime >= SERVER_TICK_INTERVAL)) // TODO: 아래와 마찬가지로 1 frame 제한 시간 초과할 경우 중단
+	// 인터벌이 되지 않아도 처리 대기 큐가 비어있다면 바로 가져온다
+	if ((AccumulatedTickTime >= SERVER_TICK_INTERVAL) || SortedRecvPendings.IsEmpty()) // TODO: 아래와 마찬가지로 1 frame 제한 시간 초과할 경우 중단
 	{
 		AccumulatedTickTime = 0;
 
@@ -217,18 +219,36 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 			SortedRecvPendings.Dequeue(RecvPending);
 
 			uint32 recvBufferTick = ((PacketHeader*)RecvPending->GetBuf())->tick;
-			if (recvBufferTick > ignoreTickLowerThan)
+			uint16 recvBufferId = ((PacketHeader*)RecvPending->GetBuf())->id;
+			if (recvBufferTick > lastAppliedTick)
 			{
-				ignoreTickLowerThan = recvBufferTick; // 현재 함수 콜에서 처리해야 할 틱 번호 설정
+				lastAppliedTick = recvBufferTick; // 다음 함수 콜에서 처리해야 할 틱 번호 설정
 				break;
 			}
-			else if (recvBufferTick < ignoreTickLowerThan)
+			else if (recvBufferTick < lastAppliedTick)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Gameplay Contradiction 발생 가능한 패킷을 무시합니다. 클라이언트 접속 허용 최대 Ping을 낮추는 것을 고려하십시오."));
-				Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
-				RecvPending = nullptr;
+				switch (recvBufferId)
+				{
+					// 순서 지났더라도 처리 보장
+					case PacketId::CLIENT_EVENT_ON_TICK_LOOSE:
+						UE_LOG(LogTemp, Warning, TEXT("패킷 처리 순서가 지켜지지 않았습니다. 네트워크 지연시간이 다른 클라이언트와 크게 차이가 날 가능성이 있습니다."));
+					case PacketId::DEFAULT:
+					case PacketId::CHAT_GLOBAL:
+					case PacketId::CLIENT_EVENT_ON_RECV:
+						{
+							break;
+						}
+					// 순서 고려하는 경우
+					case PacketId::CLIENT_EVENT_ON_TICK_STRICT:
+						{
+							UE_LOG(LogTemp, Warning, TEXT("순서가 지나간 패킷을 무시합니다. 네트워크 지연시간이 다른 클라이언트와 크게 차이가 날 가능성이 있습니다."));
+							Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
+							RecvPending = nullptr;
+							break;
+						}
+				}
 			}
-			// 같을 경우 루프 continue
+			// 처리 순서에 해당될 경우 continue 해서 처리
 		}
 	}
 }

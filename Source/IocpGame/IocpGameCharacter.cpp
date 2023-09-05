@@ -164,7 +164,7 @@ void AIocpGameCharacter::Jump_UEClient()
 	while (!writeBuf) writeBuf = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
 	writeBuf->Write(testJumpPacket, sizeof(testJumpPacket));
 	NetHandler->FillPacketSenderTypeHeader(writeBuf);
-	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::CLIENT_EVENT;
+	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::CLIENT_EVENT_ON_RECV;
 	((PacketHeader*)(writeBuf->GetBuf()))->tick = 99999; //Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
 	NetHandler->GetSessionShared()->PushSendQueue(writeBuf);
 
@@ -177,7 +177,7 @@ void AIocpGameCharacter::Jump_UEClient()
 	while (!writeBuf2) writeBuf2 = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
 	writeBuf2->Write(testJumpPacket, sizeof(testJumpPacket));
 	NetHandler->FillPacketSenderTypeHeader(writeBuf2);
-	((PacketHeader*)(writeBuf2->GetBuf()))->id = PacketId::CLIENT_EVENT;
+	((PacketHeader*)(writeBuf2->GetBuf()))->id = PacketId::CLIENT_EVENT_ON_RECV;
 	((PacketHeader*)(writeBuf2->GetBuf()))->tick = 99999;
 	NetHandler->GetSessionShared()->PushSendQueue(writeBuf2);
 
@@ -185,7 +185,7 @@ void AIocpGameCharacter::Jump_UEClient()
 	while (!writeBuf3) writeBuf3 = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
 	writeBuf3->Write(testJumpPacket, sizeof(testJumpPacket));
 	NetHandler->FillPacketSenderTypeHeader(writeBuf3);
-	((PacketHeader*)(writeBuf3->GetBuf()))->id = PacketId::CLIENT_EVENT;
+	((PacketHeader*)(writeBuf3->GetBuf()))->id = PacketId::CLIENT_EVENT_ON_RECV;
 	((PacketHeader*)(writeBuf3->GetBuf()))->tick = 99999;
 	NetHandler->GetSessionShared()->PushSendQueue(writeBuf3);
 
@@ -193,7 +193,7 @@ void AIocpGameCharacter::Jump_UEClient()
 	while (!writeBuf4) writeBuf4 = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
 	writeBuf4->Write(testJumpPacket, sizeof(testJumpPacket));
 	NetHandler->FillPacketSenderTypeHeader(writeBuf4);
-	((PacketHeader*)(writeBuf4->GetBuf()))->id = PacketId::CLIENT_EVENT;
+	((PacketHeader*)(writeBuf4->GetBuf()))->id = PacketId::CLIENT_EVENT_ON_RECV;
 	((PacketHeader*)(writeBuf4->GetBuf()))->tick = 88888;
 	NetHandler->GetSessionShared()->PushSendQueue(writeBuf4);
 }
