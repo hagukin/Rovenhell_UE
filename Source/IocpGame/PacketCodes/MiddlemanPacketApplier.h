@@ -8,11 +8,11 @@
 /**
  * 
  */
-class IOCPGAME_API ChatPacketApplier : public PacketApplier
+class IOCPGAME_API MiddlemanPacketApplier : public PacketApplier
 {
 public:
-	ChatPacketApplier();
-	virtual ~ChatPacketApplier();
+	MiddlemanPacketApplier();
+	virtual ~MiddlemanPacketApplier();
 
 	bool Init(TSharedPtr<NetSession> session);
 	bool ApplyPacket(TSharedPtr<RecvBuffer> packet) override;

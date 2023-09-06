@@ -8,12 +8,12 @@
 /**
  * 
  */
-class IOCPGAME_API ClientEventApplier : PacketApplier
+class IOCPGAME_API PhysicsApplier : public PacketApplier
 {
 public:
-	ClientEventApplier();
-	~ClientEventApplier();
+	PhysicsApplier();
+	virtual ~PhysicsApplier();
 
-	bool Init();
+	bool Init(TSharedPtr<NetSession> session);
 	bool ApplyPacket(TSharedPtr<RecvBuffer> packet) override;
 };

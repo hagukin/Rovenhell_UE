@@ -70,9 +70,11 @@ void ANetHandler::Init()
 
 	// Applier 생성
 	ChatApplier = MakeUnique<ChatPacketApplier>();
-	ChatApplier->Init();
-	ClEventApplier = MakeUnique<ClientEventApplier>();
-	ClEventApplier->Init();
+	ChatApplier->Init(GetSessionShared());
+	PhysApplier = MakeUnique<PhysicsApplier>();
+	PhysApplier->Init(GetSessionShared());
+	MiddleApplier = MakeUnique<MiddlemanPacketApplier>();
+	MiddleApplier->Init(GetSessionShared());
 
 
 	// 호스트 타입 별 초기화
@@ -88,10 +90,10 @@ void ANetHandler::Init()
 	NetAddress serverAddr(TEXT("127.0.0.1"), port);
 
 	bool connected = Session->TryConnect(serverAddr, 0, 1); // TODO: 만약 일정시간동안 시도를 반복하는 방식을 사용할 경우, BeginPlay에서 이를 처리하는 것은 좋지 못함, 비동기적 처리가 필요
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("커넥션 포트 번호: %i, 커넥션 상태: %d"), port, (int)connected));
+	UE_LOG(LogTemp, Log, TEXT("커넥션 포트 번호: %i, 커넥션 상태: %d"), port, (int)connected);
 
 	// 세션 작동
-	if (Session->Start()) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("세션이 정상적으로 작동중입니다.")));
+	if (Session->Start()) { UE_LOG(LogTemp, Log, TEXT("세션이 정상적으로 작동중입니다.")); }
 }
 
 void ANetHandler::FillPacketSenderTypeHeader(TSharedPtr<SendBuffer> buffer)
@@ -118,14 +120,18 @@ bool ANetHandler::DistributePendingPacket()
 			applied = ChatApplier->ApplyPacket(RecvPending);
 			break;
 		}
-	case PacketId::CLIENT_EVENT_ON_RECV:
-	case PacketId::CLIENT_EVENT_ON_TICK_STRICT:
-	case PacketId::CLIENT_EVENT_ON_TICK_LOOSE:
+	case PacketId::ACTOR_PHYSICS:
 		{
-			applied = ClEventApplier->ApplyPacket(RecvPending);
+			applied = PhysApplier->ApplyPacket(RecvPending);
+			break;
+		}
+	case PacketId::SESSION_INFO:
+		{
+			applied = MiddleApplier->ApplyPacket(RecvPending);
 			break;
 		}
 	default:
+		UE_LOG(LogTemp, Warning, TEXT("패킷 id %i는 Applier에 의해 처리되지 않았습니다."), header.id);
 		break;
 	}
 	return applied;
@@ -158,27 +164,49 @@ void ANetHandler::Tick_UEClient(float DeltaTime)
 	//Session->PushSendQueue(writeBuf);
 
 	//// 수신
-	// 상대방이 DeltaTime 이상의 시간을 주기로 패킷을 보내야 틱에서 데이터를 제대로 처리할 수 있다
-	//if (RecvPending)
-	//{
-	//	//PacketDebug(DeltaTime);
-	//	if (!DistributePendingPacket())
-	//	{
-	//		UE_LOG(LogTemp, Error, TEXT("수신 완료한 패킷 내용을 적용하는 과정에서 문제가 발생했습니다, 해당 패킷 내용은 무시됩니다."));
-	//	}
-	//	Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
-	//	RecvPending = nullptr;
-	//}
-	//if (!Session->IsRecvQueueEmpty())
-	//{
-	//	RecvPriorityQueueNode node;
+	// 1 event tick에 하나의 패킷을 처리
+	while (!RecvPending && !Session->Receiver->RecvPriorityQueue.IsEmpty())
+	{
+		RecvPriorityQueueNode node;
 
-	//	while (!Session->Receiver->Lock.TryLock());
-	//	Session->Receiver->RecvPriorityQueue.HeapPop(node);
-	//	Session->Receiver->Lock.Unlock();
+		while (!Session->Receiver->Lock.TryLock());
+		Session->Receiver->RecvPriorityQueue.HeapPop(node);
+		Session->Receiver->Lock.Unlock();
 
-	//	RecvPending = node.recvBuffer;
-	//}
+		RecvPending = node.recvBuffer;
+
+		uint16 recvBufferProtocol = ((PacketHeader*)RecvPending->GetBuf())->protocol;
+		switch (recvBufferProtocol)
+		{
+			case PacketProtocol::LOGIC_EVENT:
+			case PacketProtocol::MIDDLEMAN_EVENT:
+			{
+				break;
+			}
+			// 클라이언트가 처리할 수 없는 프로토콜
+			case PacketProtocol::NO_PROTOCOL:
+			case PacketProtocol::CLIENT_EVENT_ON_RECV:
+			case PacketProtocol::CLIENT_EVENT_ON_TICK_STRICT:
+			case PacketProtocol::CLIENT_EVENT_ON_TICK_LOOSE:
+			{
+				UE_LOG(LogTemp, Warning, TEXT("클라이언트에서 처리할 수 없는 잘못된 패킷 프로토콜 %i입니다. 패킷을 무시합니다."), recvBufferProtocol);
+				Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
+				RecvPending = nullptr; // 다시 루프
+				break;
+			}
+		}
+	}
+
+	if (RecvPending)
+	{
+		//PacketDebug(DeltaTime);
+		if (!DistributePendingPacket())
+		{
+			UE_LOG(LogTemp, Error, TEXT("수신 완료한 패킷 내용을 적용하는 과정에서 문제가 발생했습니다, 해당 패킷 내용은 무시됩니다."));
+		}
+		Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
+		RecvPending = nullptr;
+	}
 }
 
 void ANetHandler::Tick_UEServer(float DeltaTime)
@@ -219,7 +247,7 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 			SortedRecvPendings.Dequeue(RecvPending);
 
 			uint32 recvBufferTick = ((PacketHeader*)RecvPending->GetBuf())->tick;
-			uint16 recvBufferId = ((PacketHeader*)RecvPending->GetBuf())->id;
+			uint16 recvBufferProtocol = ((PacketHeader*)RecvPending->GetBuf())->protocol;
 			if (recvBufferTick > lastAppliedTick)
 			{
 				lastAppliedTick = recvBufferTick; // 다음 함수 콜에서 처리해야 할 틱 번호 설정
@@ -227,21 +255,29 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 			}
 			else if (recvBufferTick < lastAppliedTick)
 			{
-				switch (recvBufferId)
+				switch (recvBufferProtocol)
 				{
 					// 순서 지났더라도 처리 보장
-					case PacketId::CLIENT_EVENT_ON_TICK_LOOSE:
-						UE_LOG(LogTemp, Warning, TEXT("패킷 처리 순서가 지켜지지 않았습니다. 네트워크 지연시간이 다른 클라이언트와 크게 차이가 날 가능성이 있습니다."));
-					case PacketId::DEFAULT:
-					case PacketId::CHAT_GLOBAL:
-					case PacketId::CLIENT_EVENT_ON_RECV:
+					case PacketProtocol::CLIENT_EVENT_ON_TICK_LOOSE:
+						UE_LOG(LogTemp, Warning, TEXT("패킷 처리 순서가 지켜지지 않았습니다. 패킷을 발송한 클라이언트의 네트워크 지연시간이 다른 클라이언트와 크게 차이가 날 가능성이 있습니다."));
+					case PacketProtocol::CLIENT_EVENT_ON_RECV:
+					case PacketProtocol::MIDDLEMAN_EVENT:
 						{
 							break;
 						}
 					// 순서 고려하는 경우
-					case PacketId::CLIENT_EVENT_ON_TICK_STRICT:
+					case PacketProtocol::CLIENT_EVENT_ON_TICK_STRICT:
 						{
-							UE_LOG(LogTemp, Warning, TEXT("순서가 지나간 패킷을 무시합니다. 네트워크 지연시간이 다른 클라이언트와 크게 차이가 날 가능성이 있습니다."));
+							UE_LOG(LogTemp, Warning, TEXT("순서가 지나간 패킷을 무시합니다. 패킷을 발송한 클라이언트의 네트워크 지연시간이 다른 클라이언트와 크게 차이가 날 가능성이 있습니다."));
+							Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
+							RecvPending = nullptr;
+							break;
+						}
+					// 로직 서버가 처리할 수 없는 프로토콜
+					case PacketProtocol::NO_PROTOCOL:
+					case PacketProtocol::LOGIC_EVENT:
+						{
+							UE_LOG(LogTemp, Warning, TEXT("로직서버에서 처리할 수 없는 잘못된 패킷 프로토콜 %i입니다. 패킷을 무시합니다."), recvBufferProtocol);
 							Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
 							RecvPending = nullptr;
 							break;

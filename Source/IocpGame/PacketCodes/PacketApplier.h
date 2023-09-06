@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "../NetCodes/NetBuffer.h"
+#include "../NetCodes/NetSession.h"
 
 /**
  * 
@@ -14,6 +15,14 @@ public:
 	PacketApplier() {}
 	virtual ~PacketApplier() {}
 
-	virtual bool Init() { return true; }
+	virtual bool Init(TSharedPtr<NetSession> session)
+	{ 
+		if (!session) return false;
+		Session = session;
+		return true; 
+	}
 	virtual bool ApplyPacket(TSharedPtr<RecvBuffer> packet) abstract;
+
+protected:
+	TSharedPtr<NetSession> Session = nullptr;
 };

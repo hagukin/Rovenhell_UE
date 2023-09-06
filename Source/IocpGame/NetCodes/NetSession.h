@@ -50,6 +50,8 @@ public:
 	void Disconnect();
 
 	const NetAddress& GetPeerAddr() const;
+	void SetSessionId(uint64 id) { _sessionId = id; return; }
+	const uint64 GetSessionId() const { return _sessionId; }
 
 public:
 	TUniquePtr<NetBufferManager> BufManager = nullptr;
@@ -61,4 +63,5 @@ public:
 private:
 	int32 bytesSent = 0; // Send()에서 사용; 현재 소켓이 Send 중일 경우, 몇 바이트를 발송 완료했는지
 	HostTypeEnum HostType;
+	uint64 _sessionId = 0; // 미들맨에서 할당받는 세션의 고유 ID; 클라이언트 구분에 사용된다 (서버는 크게 의미없다)
 };

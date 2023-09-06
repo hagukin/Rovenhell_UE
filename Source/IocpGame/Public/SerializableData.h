@@ -4,12 +4,12 @@
 
 #include "CoreMinimal.h"
 
-enum HostTypeEnum : uint16
+/**
+ * 
+ */
+class IOCPGAME_API SerializableData
 {
-	NONE,
-	CLIENT_HEADLESS,
-	CLIENT,
-	LOGIC_SERVER_HEADLESS,
-	LOGIC_SERVER,
-	MIDDLEMAN_SERVER,
+public:
+	SerializableData() {};
+	~SerializableData() {};
 };

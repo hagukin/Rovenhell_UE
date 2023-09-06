@@ -114,6 +114,8 @@ void SendBuffer::SetDefaultHeader()
 	// 단 size의 경우에는 Write() 과정에서 알아서 업데이트 되기 때문에 senderType과 id만 제대로 입력해주면 됨
 	((PacketHeader*)Buffer)->size = sizeof(PacketHeader);
 	((PacketHeader*)Buffer)->senderType = HostTypeEnum::NONE;
+	((PacketHeader*)Buffer)->senderId = 0;
+	((PacketHeader*)Buffer)->protocol = PacketProtocol::NO_PROTOCOL;
 	((PacketHeader*)Buffer)->id = PacketId::DEFAULT;
 	((PacketHeader*)Buffer)->tick = 0;
 
