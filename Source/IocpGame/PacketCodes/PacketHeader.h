@@ -26,6 +26,7 @@ enum PacketId : uint16
 	ACTOR_PHYSICS,
 
 	//// 로직 서버
+	GAME_STATE,
 
 	//// 미들맨
 	// 미들맨에서 생성한 이 호스트 세션의 정보

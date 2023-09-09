@@ -12,14 +12,23 @@ PhysicsApplier::~PhysicsApplier()
 {
 }
 
-bool PhysicsApplier::Init(TSharedPtr<NetSession> session)
+bool PhysicsApplier::Init(TSharedPtr<NetSession> session, UGameInstance* gameInstance)
 {
-	if (!PacketApplier::Init(session)) return false;
+	if (!PacketApplier::Init(session, gameInstance)) return false;
 	return true;
 }
 
 bool PhysicsApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("패킷 발송자 id: %i 발신자 타입: %d 틱: %i 내용: %s"), ((PacketHeader*)(packet->GetBuf()))->senderId, ((PacketHeader*)(packet->GetBuf()))->senderType, ((PacketHeader*)(packet->GetBuf()))->tick, *MyBytesToString(packet->GetData(), (int32)packet->GetSize() - sizeof(PacketHeader))));
+	// TEMP
+	if (((PacketHeader*)(packet->GetBuf()))->id == PacketId::GAME_STATE)
+	{
+		URovenhellGameInstance* gameInstance = Cast<URovenhellGameInstance>(GameInstance);
+		if (gameInstance->GetExecType()->GetHostType() == HostTypeEnum::CLIENT || gameInstance->GetExecType()->GetHostType() == HostTypeEnum::CLIENT_HEADLESS)
+		{
+			gameInstance->TickCounter->SetServerTick_UEClient(((PacketHeader*)(packet->GetBuf()))->tick); // 서버 틱과 동기화
+		}
+	}
+
 	return true;
 }

@@ -158,7 +158,7 @@ void AIocpGameCharacter::JumpStart() // 테스트용 함수; OnTrigger와 다르
 
 void AIocpGameCharacter::Jump_UEClient()
 {
-	// 이벤트 패킷 전송 (테스트를 위해 임시로 채팅 패킷으로 작성)
+	// TESTING
 	T_BYTE testJumpPacket[4] = { T_BYTE(74), T_BYTE(85), T_BYTE(77), T_BYTE(80) }; //JUMP
 	TSharedPtr<SendBuffer> writeBuf;
 	while (!writeBuf) writeBuf = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
@@ -167,43 +167,8 @@ void AIocpGameCharacter::Jump_UEClient()
 	((PacketHeader*)(writeBuf->GetBuf()))->senderId = NetHandler->GetSessionShared()->GetSessionId();
 	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_EVENT_ON_RECV;
 	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::ACTOR_PHYSICS;
-	((PacketHeader*)(writeBuf->GetBuf()))->tick = 99999; //Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
+	((PacketHeader*)(writeBuf->GetBuf()))->tick = 99999;
 	NetHandler->GetSessionShared()->PushSendQueue(writeBuf);
-
-
-
-
-
-	///// TESTING
-	TSharedPtr<SendBuffer> writeBuf2;
-	while (!writeBuf2) writeBuf2 = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
-	writeBuf2->Write(testJumpPacket, sizeof(testJumpPacket));
-	NetHandler->FillPacketSenderTypeHeader(writeBuf2);
-	((PacketHeader*)(writeBuf2->GetBuf()))->senderId = NetHandler->GetSessionShared()->GetSessionId();
-	((PacketHeader*)(writeBuf2->GetBuf()))->protocol = PacketProtocol::CLIENT_EVENT_ON_RECV;
-	((PacketHeader*)(writeBuf2->GetBuf()))->id = PacketId::ACTOR_PHYSICS;
-	((PacketHeader*)(writeBuf2->GetBuf()))->tick = 99999; //Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
-	NetHandler->GetSessionShared()->PushSendQueue(writeBuf2);
-
-	TSharedPtr<SendBuffer> writeBuf3;
-	while (!writeBuf3) writeBuf3 = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
-	writeBuf3->Write(testJumpPacket, sizeof(testJumpPacket));
-	NetHandler->FillPacketSenderTypeHeader(writeBuf3);
-	((PacketHeader*)(writeBuf3->GetBuf()))->senderId = NetHandler->GetSessionShared()->GetSessionId();
-	((PacketHeader*)(writeBuf3->GetBuf()))->protocol = PacketProtocol::CLIENT_EVENT_ON_RECV;
-	((PacketHeader*)(writeBuf3->GetBuf()))->id = PacketId::ACTOR_PHYSICS;
-	((PacketHeader*)(writeBuf3->GetBuf()))->tick = 88888; //Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
-	NetHandler->GetSessionShared()->PushSendQueue(writeBuf3);
-
-	TSharedPtr<SendBuffer> writeBuf4;
-	while (!writeBuf4) writeBuf4 = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
-	writeBuf4->Write(testJumpPacket, sizeof(testJumpPacket));
-	NetHandler->FillPacketSenderTypeHeader(writeBuf4);
-	((PacketHeader*)(writeBuf4->GetBuf()))->senderId = NetHandler->GetSessionShared()->GetSessionId();
-	((PacketHeader*)(writeBuf4->GetBuf()))->protocol = PacketProtocol::CLIENT_EVENT_ON_RECV;
-	((PacketHeader*)(writeBuf4->GetBuf()))->id = PacketId::ACTOR_PHYSICS;
-	((PacketHeader*)(writeBuf4->GetBuf()))->tick = 77777; //Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
-	NetHandler->GetSessionShared()->PushSendQueue(writeBuf4);
 }
 
 void AIocpGameCharacter::Jump_UEServer()

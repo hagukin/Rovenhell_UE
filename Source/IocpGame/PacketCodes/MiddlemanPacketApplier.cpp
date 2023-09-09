@@ -11,9 +11,9 @@ MiddlemanPacketApplier::~MiddlemanPacketApplier()
 {
 }
 
-bool MiddlemanPacketApplier::Init(TSharedPtr<NetSession> session)
+bool MiddlemanPacketApplier::Init(TSharedPtr<NetSession> session, UGameInstance* gameInstance)
 {
-    if (!PacketApplier::Init(session)) return false;
+    if (!PacketApplier::Init(session, gameInstance)) return false;
     return true;
 }
 

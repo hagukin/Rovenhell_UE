@@ -12,9 +12,9 @@ ChatPacketApplier::~ChatPacketApplier()
 {
 }
 
-bool ChatPacketApplier::Init(TSharedPtr<NetSession> session)
+bool ChatPacketApplier::Init(TSharedPtr<NetSession> session, UGameInstance* gameInstance)
 {
-    if (!PacketApplier::Init(session)) return false;
+    if (!PacketApplier::Init(session, gameInstance)) return false;
     return true;
 }
 

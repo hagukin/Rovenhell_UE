@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "PacketApplier.h"
+#include "RovenhellGameInstance.h"
 
 /**
  * 
@@ -14,6 +15,6 @@ public:
 	PhysicsApplier();
 	virtual ~PhysicsApplier();
 
-	bool Init(TSharedPtr<NetSession> session);
+	bool Init(TSharedPtr<NetSession> session, UGameInstance* gameInstance);
 	bool ApplyPacket(TSharedPtr<RecvBuffer> packet) override;
 };

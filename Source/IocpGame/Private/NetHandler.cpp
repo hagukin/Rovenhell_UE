@@ -70,11 +70,11 @@ void ANetHandler::Init()
 
 	// Applier 생성
 	ChatApplier = MakeUnique<ChatPacketApplier>();
-	ChatApplier->Init(GetSessionShared());
+	ChatApplier->Init(GetSessionShared(), GetGameInstance());
 	PhysApplier = MakeUnique<PhysicsApplier>();
-	PhysApplier->Init(GetSessionShared());
+	PhysApplier->Init(GetSessionShared(), GetGameInstance());
 	MiddleApplier = MakeUnique<MiddlemanPacketApplier>();
-	MiddleApplier->Init(GetSessionShared());
+	MiddleApplier->Init(GetSessionShared(), GetGameInstance());
 
 
 	// 호스트 타입 별 초기화
@@ -125,6 +125,11 @@ bool ANetHandler::DistributePendingPacket()
 			applied = PhysApplier->ApplyPacket(RecvPending);
 			break;
 		}
+	case PacketId::GAME_STATE:
+		{
+			applied = PhysApplier->ApplyPacket(RecvPending); ///// TEMP FIXME
+			break;
+		}
 	case PacketId::SESSION_INFO:
 		{
 			applied = MiddleApplier->ApplyPacket(RecvPending);
@@ -151,17 +156,9 @@ void ANetHandler::InitGameHostType()
 
 void ANetHandler::Tick_UEClient(float DeltaTime)
 {
-	//// 발송
-	// 테스트용 패킷 생성
-	//T_BYTE sendTestData[10] = { T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65), T_BYTE(65) }; // AAAAAAAAAA
-	//T_BYTE sendTestData2[2] = { T_BYTE(66), T_BYTE(66) }; // BB
-	//TSharedPtr<SendBuffer> writeBuf;
-	//while (!writeBuf) writeBuf = Session->BufManager->SendPool->PopBuffer(); // TODO: Receiver에서 처리하듯이 대기 시간 늘려가면서 버퍼 가져올때까지 스레드 대기하도록 만들기
-	//writeBuf->Write(sendTestData, sizeof(sendTestData));
-	//writeBuf->Write(sendTestData2, sizeof(sendTestData2));
-	//FillPacketSenderTypeHeader(writeBuf);
-	//((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::CHAT_GLOBAL;
-	//Session->PushSendQueue(writeBuf);
+	//// 테스트
+	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("마지막 수신 서버틱: %i 로컬틱: %i"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetServerTick(), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick()));
+
 
 	//// 수신
 	// 1 event tick에 하나의 패킷을 처리
@@ -211,12 +208,33 @@ void ANetHandler::Tick_UEClient(float DeltaTime)
 
 void ANetHandler::Tick_UEServer(float DeltaTime)
 {
+	//// 테스트
+	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("틱: %i"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick()));
+
+
 	AccumulatedTickTime += DeltaTime;
-	// 인터벌이 되지 않아도 처리 대기 큐가 비어있다면 바로 가져온다
-	if ((AccumulatedTickTime >= SERVER_TICK_INTERVAL) || SortedRecvPendings.IsEmpty()) // TODO: 아래와 마찬가지로 1 frame 제한 시간 초과할 경우 중단
+	// 인터벌마다 서버 정보를 Broadcast한다
+	if (AccumulatedTickTime >= SERVER_TICK_INTERVAL)
 	{
 		AccumulatedTickTime = 0;
 
+
+		// TESTING
+		T_BYTE testPacket[1] = { T_BYTE(81) };
+		TSharedPtr<SendBuffer> writeBuf;
+		while (!writeBuf) writeBuf = GetSessionShared()->BufManager->SendPool->PopBuffer();
+		writeBuf->Write(testPacket, sizeof(testPacket));
+		FillPacketSenderTypeHeader(writeBuf);
+		((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();
+		((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::LOGIC_EVENT;
+		((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_STATE;
+		((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
+		GetSessionShared()->PushSendQueue(writeBuf);
+	}
+
+	// 처리 대기 큐가 비어있다면 바로 가져온다
+	if (SortedRecvPendings.IsEmpty())
+	{
 		RecvPriorityQueueNode node;
 		while (!Session->Receiver->Lock.TryLock());
 		while (!Session->Receiver->RecvPriorityQueue.IsEmpty())
@@ -260,6 +278,7 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 					// 순서 지났더라도 처리 보장
 					case PacketProtocol::CLIENT_EVENT_ON_TICK_LOOSE:
 						UE_LOG(LogTemp, Warning, TEXT("패킷 처리 순서가 지켜지지 않았습니다. 패킷을 발송한 클라이언트의 네트워크 지연시간이 다른 클라이언트와 크게 차이가 날 가능성이 있습니다."));
+						// fallthrough intended
 					case PacketProtocol::CLIENT_EVENT_ON_RECV:
 					case PacketProtocol::MIDDLEMAN_EVENT:
 						{

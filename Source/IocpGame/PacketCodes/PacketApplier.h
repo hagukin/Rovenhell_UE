@@ -15,14 +15,16 @@ public:
 	PacketApplier() {}
 	virtual ~PacketApplier() {}
 
-	virtual bool Init(TSharedPtr<NetSession> session)
+	virtual bool Init(TSharedPtr<NetSession> session, UGameInstance* gameInstance)
 	{ 
-		if (!session) return false;
+		if (!session || !gameInstance) return false;
 		Session = session;
+		GameInstance = gameInstance;
 		return true; 
 	}
 	virtual bool ApplyPacket(TSharedPtr<RecvBuffer> packet) abstract;
 
 protected:
 	TSharedPtr<NetSession> Session = nullptr;
+	UGameInstance* GameInstance = nullptr;
 };
