@@ -18,17 +18,12 @@ bool PhysicsApplier::Init(TSharedPtr<NetSession> session, UGameInstance* gameIns
 	return true;
 }
 
-bool PhysicsApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet)
+bool PhysicsApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer)
 {
-	// TEMP
-	if (((PacketHeader*)(packet->GetBuf()))->id == PacketId::GAME_STATE)
-	{
-		URovenhellGameInstance* gameInstance = Cast<URovenhellGameInstance>(GameInstance);
-		if (gameInstance->GetExecType()->GetHostType() == HostTypeEnum::CLIENT || gameInstance->GetExecType()->GetHostType() == HostTypeEnum::CLIENT_HEADLESS)
-		{
-			gameInstance->TickCounter->SetServerTick_UEClient(((PacketHeader*)(packet->GetBuf()))->tick); // 서버 틱과 동기화
-		}
-	}
-
+	deserializer->Clear();
+	SD_Actor* actorData = new SD_Actor();
+	deserializer->ReadDataFromBuffer(packet);
+	deserializer->DeserializeActor(actorData);
+	UE_LOG(LogTemp, Warning, TEXT("%f %f %f / %f %f %f / %f %f %f"), actorData->xLoc, actorData->yLoc, actorData->zLoc, actorData->xRot, actorData->yRot, actorData->zRot, actorData->xVel, actorData->yVel, actorData->zVel);
 	return true;
 }

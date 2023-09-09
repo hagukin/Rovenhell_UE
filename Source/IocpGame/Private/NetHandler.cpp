@@ -68,11 +68,19 @@ void ANetHandler::Init()
 	// 커넥션
 	int32 port = 0;
 
+	// 직렬화
+	Serializer = MakeShared<SerializeManager>();
+	Serializer->Init();
+	Deserializer = MakeShared<SerializeManager>();
+	Deserializer->Init();
+
 	// Applier 생성
 	ChatApplier = MakeUnique<ChatPacketApplier>();
 	ChatApplier->Init(GetSessionShared(), GetGameInstance());
 	PhysApplier = MakeUnique<PhysicsApplier>();
 	PhysApplier->Init(GetSessionShared(), GetGameInstance());
+	GameApplier = MakeUnique<GameStateApplier>();
+	GameApplier->Init(GetSessionShared(), GetGameInstance());
 	MiddleApplier = MakeUnique<MiddlemanPacketApplier>();
 	MiddleApplier->Init(GetSessionShared(), GetGameInstance());
 
@@ -117,22 +125,22 @@ bool ANetHandler::DistributePendingPacket()
 	{
 	case PacketId::CHAT_GLOBAL:
 		{
-			applied = ChatApplier->ApplyPacket(RecvPending);
+			applied = ChatApplier->ApplyPacket(RecvPending, Deserializer);
 			break;
 		}
 	case PacketId::ACTOR_PHYSICS:
 		{
-			applied = PhysApplier->ApplyPacket(RecvPending);
+			applied = PhysApplier->ApplyPacket(RecvPending, Deserializer);
 			break;
 		}
 	case PacketId::GAME_STATE:
 		{
-			applied = PhysApplier->ApplyPacket(RecvPending); ///// TEMP FIXME
+			applied = GameApplier->ApplyPacket(RecvPending, Deserializer);
 			break;
 		}
 	case PacketId::SESSION_INFO:
 		{
-			applied = MiddleApplier->ApplyPacket(RecvPending);
+			applied = MiddleApplier->ApplyPacket(RecvPending, Deserializer);
 			break;
 		}
 	default:
@@ -157,7 +165,7 @@ void ANetHandler::InitGameHostType()
 void ANetHandler::Tick_UEClient(float DeltaTime)
 {
 	//// 테스트
-	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("마지막 수신 서버틱: %i 로컬틱: %i"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetServerTick(), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick()));
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("마지막 수신 서버틱: %i 로컬틱: %i"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetServerTick(), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick()));
 
 
 	//// 수신
@@ -209,7 +217,7 @@ void ANetHandler::Tick_UEClient(float DeltaTime)
 void ANetHandler::Tick_UEServer(float DeltaTime)
 {
 	//// 테스트
-	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("틱: %i"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick()));
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("틱: %i"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick()));
 
 
 	AccumulatedTickTime += DeltaTime;

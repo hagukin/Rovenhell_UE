@@ -159,19 +159,20 @@ void AIocpGameCharacter::JumpStart() // 테스트용 함수; OnTrigger와 다르
 void AIocpGameCharacter::Jump_UEClient()
 {
 	// TESTING
-	T_BYTE testJumpPacket[4] = { T_BYTE(74), T_BYTE(85), T_BYTE(77), T_BYTE(80) }; //JUMP
 	TSharedPtr<SendBuffer> writeBuf;
 	while (!writeBuf) writeBuf = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
-	writeBuf->Write(testJumpPacket, sizeof(testJumpPacket));
+	NetHandler->GetSerializerShared()->Clear();
+	SD_Actor* actorData = new SD_Actor(this);
+	NetHandler->GetSerializerShared()->SerializeActor(actorData);
+	NetHandler->GetSerializerShared()->WriteDataToBuffer(writeBuf);
 	NetHandler->FillPacketSenderTypeHeader(writeBuf);
 	((PacketHeader*)(writeBuf->GetBuf()))->senderId = NetHandler->GetSessionShared()->GetSessionId();
 	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_EVENT_ON_RECV;
 	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::ACTOR_PHYSICS;
-	((PacketHeader*)(writeBuf->GetBuf()))->tick = 99999;
+	((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
 	NetHandler->GetSessionShared()->PushSendQueue(writeBuf);
 }
 
 void AIocpGameCharacter::Jump_UEServer()
 {
-
 }

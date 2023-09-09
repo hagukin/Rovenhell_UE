@@ -18,7 +18,7 @@ bool ChatPacketApplier::Init(TSharedPtr<NetSession> session, UGameInstance* game
     return true;
 }
 
-bool ChatPacketApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet)
+bool ChatPacketApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer)
 {
     GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("채팅 %d : %s"), ((PacketHeader*)(packet->GetBuf()))->senderId, *MyBytesToString(packet->GetData(), (int32)packet->GetSize() - sizeof(PacketHeader))));
     return true;

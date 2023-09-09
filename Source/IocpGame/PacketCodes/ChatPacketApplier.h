@@ -15,5 +15,5 @@ public:
 	virtual ~ChatPacketApplier();
 
 	bool Init(TSharedPtr<NetSession> session, UGameInstance* gameInstance);
-	bool ApplyPacket(TSharedPtr<RecvBuffer> packet) override;
+	bool ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer) override;
 };

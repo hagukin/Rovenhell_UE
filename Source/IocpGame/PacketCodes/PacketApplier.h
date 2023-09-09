@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "../NetCodes/NetBuffer.h"
 #include "../NetCodes/NetSession.h"
+#include "SerializeManager.h"
 
 /**
  * 
@@ -22,7 +23,7 @@ public:
 		GameInstance = gameInstance;
 		return true; 
 	}
-	virtual bool ApplyPacket(TSharedPtr<RecvBuffer> packet) abstract;
+	virtual bool ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> serializer) abstract;
 
 protected:
 	TSharedPtr<NetSession> Session = nullptr;

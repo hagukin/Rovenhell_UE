@@ -9,7 +9,9 @@
 #include "../PacketCodes/PacketHeader.h"
 #include "../PacketCodes/ChatPacketApplier.h"
 #include "../PacketCodes/PhysicsApplier.h"
+#include "../PacketCodes/GameStateApplier.h"
 #include "../PacketCodes/MiddlemanPacketApplier.h"
+#include "../PacketCodes/SerializeManager.h"
 #include "RovenhellGameInstance.h"
 #include "GameFramework/Actor.h"
 #include "NetHandler.generated.h"
@@ -33,6 +35,8 @@ public:
 	void EndPlay(const EEndPlayReason::Type EndPlayReason);
 
 	TSharedPtr<NetSession> GetSessionShared() { return Session; }
+	TSharedPtr<SerializeManager> GetSerializerShared() { return Serializer; }
+	TSharedPtr<SerializeManager> GetDeserializerShared() { return Deserializer; }
 	HostTypeEnum GetHostType() { return HostType; }
 	void FillPacketSenderTypeHeader(TSharedPtr<SendBuffer> buffer);
 
@@ -52,7 +56,11 @@ private:
 
 	TUniquePtr<ChatPacketApplier> ChatApplier = nullptr;
 	TUniquePtr<PhysicsApplier> PhysApplier = nullptr;
+	TUniquePtr<GameStateApplier> GameApplier = nullptr;
 	TUniquePtr<MiddlemanPacketApplier> MiddleApplier = nullptr;
+
+	TSharedPtr<SerializeManager> Serializer = nullptr;
+	TSharedPtr<SerializeManager> Deserializer = nullptr;
 
 	uint32 lastAppliedTick = 0; // 마지막으로 처리된 틱 번호; 순서 보장이 필요한 틱을 처리할 때 사용함
 

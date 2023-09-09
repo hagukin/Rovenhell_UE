@@ -17,7 +17,7 @@ bool MiddlemanPacketApplier::Init(TSharedPtr<NetSession> session, UGameInstance*
     return true;
 }
 
-bool MiddlemanPacketApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet)
+bool MiddlemanPacketApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer)
 {
     // TEMP
     // deserialize middleman info
