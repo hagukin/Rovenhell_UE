@@ -13,3 +13,11 @@ enum HostTypeEnum : uint16
 	LOGIC_SERVER,
 	MIDDLEMAN_SERVER,
 };
+
+enum ActionTypeEnum : uint32
+{
+	UNDEFINED,
+	MOVE,
+	LOOK,
+	JUMP,
+};

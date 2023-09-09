@@ -20,10 +20,11 @@ public:
 	bool Init();
 	void Clear();
 
-	bool SerializeTransform(SD_Transform* inData); // TEST
-	bool DeserializeTransform(SD_Transform* outData); // TEST
-	bool WriteDataToBuffer(TSharedPtr<SendBuffer> writeBuffer); // TEST
-	bool ReadDataFromBuffer(TSharedPtr<RecvBuffer> readBuffer); // TEST
+	bool Serialize(SD_Data* inData);
+	bool Deserialize(SD_Data* outData);
+
+	bool WriteDataToBuffer(TSharedPtr<SendBuffer> writeBuffer);
+	bool ReadDataFromBuffer(TSharedPtr<RecvBuffer> readBuffer);
 
 private:
 	TUniquePtr<TArray<uint8>> Array;

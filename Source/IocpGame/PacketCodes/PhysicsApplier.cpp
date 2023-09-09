@@ -45,34 +45,25 @@ bool PhysicsApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<Seria
 
 bool PhysicsApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer)
 {
-	return true;
-}
-
-bool PhysicsApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer)
-{
 	deserializer->Clear();
 	SD_Transform* transformData = new SD_Transform();
 	deserializer->ReadDataFromBuffer(packet);
-	deserializer->DeserializeTransform(transformData);
+	deserializer->Deserialize((SD_Data*)transformData);
 	UE_LOG(LogTemp, Warning, TEXT("%f %f %f / %f %f %f / %f %f %f"), transformData->Transform.GetLocation().X, transformData->Transform.GetLocation().Y, transformData->Transform.GetLocation().Z, transformData->Transform.GetRotation().X, transformData->Transform.GetRotation().Y, transformData->Transform.GetRotation().Z);
-
-	// TODO: Level Streaming
-	/*TArray<ULevelStreaming*> streamedLevels = GameInstance->GetWorld()->GetStreamingLevels();
-	for (ULevelStreaming* streamLevel : streamedLevels)
-	{
-		ULevel* level = streamLevel->GetLoadedLevel();
-		if (!level) continue;
-		for (AActor* actor : level->Actors)
-		{
-		}
-	}*/
 
 	// 테스트
 	// 애니메이션 적용 X
 	for (TActorIterator<AIocpGameCharacter> iter(GameInstance->GetWorld()); iter; ++iter)
 	{
 		(*iter)->SetActorTransform(transformData->Transform);
+		break;
 	}
+	return true;
+}
+
+bool PhysicsApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer)
+{
+	
 
 	return true;
 }

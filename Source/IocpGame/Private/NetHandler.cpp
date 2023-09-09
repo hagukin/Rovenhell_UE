@@ -75,6 +75,8 @@ void ANetHandler::Init()
 	Deserializer->Init();
 
 	// Applier 생성
+	InApplier = MakeUnique<InputApplier>();
+	InApplier->Init(GetSessionShared(), GetGameInstance());
 	ChatApplier = MakeUnique<ChatPacketApplier>();
 	ChatApplier->Init(GetSessionShared(), GetGameInstance());
 	PhysApplier = MakeUnique<PhysicsApplier>();
@@ -123,6 +125,11 @@ bool ANetHandler::DistributePendingPacket()
 	bool applied = false;
 	switch (header.id)
 	{
+	case PacketId::GAME_INPUT:
+		{
+			applied = InApplier->ApplyPacket(RecvPending, Deserializer);
+			break;
+		}
 	case PacketId::CHAT_GLOBAL:
 		{
 			applied = ChatApplier->ApplyPacket(RecvPending, Deserializer);

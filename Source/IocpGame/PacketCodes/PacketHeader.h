@@ -19,6 +19,8 @@ enum PacketId : uint16
 	DEFAULT,
 
 	//// 클라이언트
+	// 인풋
+	GAME_INPUT,
 	// 채팅 패킷
 	CHAT_GLOBAL,
 

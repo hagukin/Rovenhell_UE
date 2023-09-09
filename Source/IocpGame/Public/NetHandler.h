@@ -7,6 +7,7 @@
 #include "../NetCodes/NetSession.h"
 #include "../NetCodes/NetBufferManager.h"
 #include "../PacketCodes/PacketHeader.h"
+#include "../PacketCodes/InputApplier.h"
 #include "../PacketCodes/ChatPacketApplier.h"
 #include "../PacketCodes/PhysicsApplier.h"
 #include "../PacketCodes/GameStateApplier.h"
@@ -54,6 +55,7 @@ private:
 	TQueue<TSharedPtr<RecvBuffer>> SortedRecvPendings; // 틱 순서대로 정렬된, 처리를 대기중인 패킷들
 	HostTypeEnum HostType = HostTypeEnum::NONE;
 
+	TUniquePtr<InputApplier> InApplier = nullptr;
 	TUniquePtr<ChatPacketApplier> ChatApplier = nullptr;
 	TUniquePtr<PhysicsApplier> PhysApplier = nullptr;
 	TUniquePtr<GameStateApplier> GameApplier = nullptr;

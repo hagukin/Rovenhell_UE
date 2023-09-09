@@ -13,47 +13,39 @@
 
 AIocpGameCharacter::AIocpGameCharacter()
 {
-	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
-		
-	// Don't rotate when the controller rotates. Let that just affect the camera.
+	
+	// 3인칭 카메라 - 마우스 회전은 캐릭터를 회전시키지 않는다
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
-	// Configure character movement
-	GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...	
-	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f); // ...at this rotation rate
+	GetCharacterMovement()->bOrientRotationToMovement = true; // 인풋 방향으로 이동
+	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f); // 회전 rate
 
-	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
-	// instead of recompiling to adjust them
 	GetCharacterMovement()->JumpZVelocity = 700.f;
 	GetCharacterMovement()->AirControl = 0.35f;
 	GetCharacterMovement()->MaxWalkSpeed = 500.f;
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
 
-	// Create a camera boom (pulls in towards the player if there is a collision)
+	// 카메라용 SpringArm
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 400.0f; // The camera follows at this distance behind the character	
-	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
+	CameraBoom->TargetArmLength = 400.0f; // 카메라 거리
+	CameraBoom->bUsePawnControlRotation = true; // 폰과 함께 회전
 
-	// Create a follow camera
+	// 카메라
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
-	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
-
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
-	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // 스프링암 끝 소켓에 고정
+	FollowCamera->bUsePawnControlRotation = false; // 회전X, 스프링암에 고정
 }
 
 void AIocpGameCharacter::BeginPlay()
 {
-	// Call the base class  
 	Super::BeginPlay();
 
-	//Add Input Mapping Context
+	// 키 입력과 인풋 액션 맵핑
 	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
@@ -67,7 +59,7 @@ void AIocpGameCharacter::BeginPlay()
 	AActor* temp =  UGameplayStatics::GetActorOfClass(GetWorld(), ANetHandler::StaticClass());
 	if (!temp)
 	{
-		UE_LOG(LogTemp, Error, TEXT("ANetHandler 클래스의 액터를 찾을 수 없습니다."));
+		UE_LOG(LogTemp, Warning, TEXT("ANetHandler 클래스의 액터를 찾을 수 없습니다."));
 	}
 	else
 	{
@@ -75,27 +67,21 @@ void AIocpGameCharacter::BeginPlay()
 	}
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Input
-
 void AIocpGameCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
-	// Set up action bindings
-	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent)) {
-		
-		//Jumping
+	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent)) 
+	{
+		// 점프
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Triggered, this, &AIocpGameCharacter::Jump);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AIocpGameCharacter::JumpStart); // 누른 최초 1회
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &AIocpGameCharacter::StopJumping);
 
-		//Moving
-		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AIocpGameCharacter::Move);
+		// 이동
+		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AIocpGameCharacter::Move_Entry);
 
-		//Looking
+		// 시야 회전
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AIocpGameCharacter::Look);
-
 	}
-
 }
 
 void AIocpGameCharacter::Move(const FInputActionValue& Value)
@@ -119,6 +105,54 @@ void AIocpGameCharacter::Move(const FInputActionValue& Value)
 		AddMovementInput(ForwardDirection, MovementVector.Y);
 		AddMovementInput(RightDirection, MovementVector.X);
 	}
+}
+
+void AIocpGameCharacter::Move_Entry(const FInputActionValue& Value)
+{
+	switch (NetHandler->GetHostType())
+	{
+		case HostTypeEnum::CLIENT:
+		case HostTypeEnum::CLIENT_HEADLESS:
+			{
+				Move_UEClient(Value);
+				break;
+			}
+		case HostTypeEnum::LOGIC_SERVER:
+		case HostTypeEnum::LOGIC_SERVER_HEADLESS:
+			{
+				Move_UEServer(Value);
+				break;
+			}
+		case HostTypeEnum::NONE:
+		default:
+			break;
+	}
+}
+
+void AIocpGameCharacter::Move_UEClient(const FInputActionValue& Value)
+{
+	Move(Value);
+	UE_LOG(LogTemp, Warning, TEXT("%f %f"), Value.Get<FVector2D>().X, Value.Get<FVector2D>().Y);
+
+	// TESTING
+	TSharedPtr<SendBuffer> writeBuf;
+	while (!writeBuf) writeBuf = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
+	NetHandler->GetSerializerShared()->Clear();
+	SD_GameInput* inputData = new SD_GameInput(ActionTypeEnum::MOVE, Value);
+	NetHandler->GetSerializerShared()->Serialize((SD_Data*)inputData);
+	NetHandler->GetSerializerShared()->WriteDataToBuffer(writeBuf);
+	NetHandler->FillPacketSenderTypeHeader(writeBuf);
+	((PacketHeader*)(writeBuf->GetBuf()))->senderId = NetHandler->GetSessionShared()->GetSessionId();
+	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_EVENT_ON_RECV;
+	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_INPUT;
+	((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
+	NetHandler->GetSessionShared()->PushSendQueue(writeBuf);
+}
+
+void AIocpGameCharacter::Move_UEServer(const FInputActionValue& Value)
+{
+	Move(Value);
+	return;
 }
 
 void AIocpGameCharacter::Look(const FInputActionValue& Value)
@@ -158,21 +192,22 @@ void AIocpGameCharacter::JumpStart() // 테스트용 함수; OnTrigger와 다르
 
 void AIocpGameCharacter::Jump_UEClient()
 {
+	
+}
+
+void AIocpGameCharacter::Jump_UEServer()
+{
 	// TESTING
 	TSharedPtr<SendBuffer> writeBuf;
 	while (!writeBuf) writeBuf = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
 	NetHandler->GetSerializerShared()->Clear();
 	SD_Transform* transformData = new SD_Transform(&this->GetTransform());
-	NetHandler->GetSerializerShared()->SerializeTransform(transformData);
+	NetHandler->GetSerializerShared()->Serialize((SD_Data*)transformData);
 	NetHandler->GetSerializerShared()->WriteDataToBuffer(writeBuf);
 	NetHandler->FillPacketSenderTypeHeader(writeBuf);
 	((PacketHeader*)(writeBuf->GetBuf()))->senderId = NetHandler->GetSessionShared()->GetSessionId();
-	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_EVENT_ON_RECV;
+	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::LOGIC_EVENT;
 	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::ACTOR_PHYSICS;
 	((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
 	NetHandler->GetSessionShared()->PushSendQueue(writeBuf);
-}
-
-void AIocpGameCharacter::Jump_UEServer()
-{
 }

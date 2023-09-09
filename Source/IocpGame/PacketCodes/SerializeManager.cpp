@@ -22,17 +22,17 @@ void SerializeManager::Clear()
 	Array->Empty();
 }
 
-bool SerializeManager::SerializeTransform(SD_Transform* inData)
+bool SerializeManager::Serialize(SD_Data* inData)
 {
 	FMemoryWriter Writer(*Array);
-	Writer << *inData;
+	inData->Serialize(Writer);
 	return true;
 }
 
-bool SerializeManager::DeserializeTransform(SD_Transform* outData)
+bool SerializeManager::Deserialize(SD_Data* outData)
 {
 	FMemoryReader Reader(*Array);
-	Reader << *outData;
+	outData->Deserialize(Reader);
 	return true;
 }
 
