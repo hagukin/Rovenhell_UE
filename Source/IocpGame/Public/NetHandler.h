@@ -68,6 +68,6 @@ private:
 
 private:
 	/* UE_SERVER */
-	const float SERVER_TICK_INTERVAL = 0.1f; // ms
+	const float SERVER_TICK_INTERVAL = 0.2f; // ms
 	float AccumulatedTickTime = 0.0f; // ms
 };

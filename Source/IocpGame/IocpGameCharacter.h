@@ -17,10 +17,10 @@ class AIocpGameCharacter : public ACharacter
 public:
 	AIocpGameCharacter();
 
-	void Move(const FInputActionValue& Value);
+	void Move(const FInputActionValue& Value, float DeltaRatio);
 	void Move_Entry(const FInputActionValue& Value);
 	void Move_UEClient(const FInputActionValue& Value);
-	void Move_UEServer(const FInputActionValue& Value);
+	void Move_UEServer(const FInputActionValue& Value, float DeltaRatio);
 
 	void Look(const FInputActionValue& Value);
 	// TODO

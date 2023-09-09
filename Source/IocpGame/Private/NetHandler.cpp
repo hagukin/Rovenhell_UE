@@ -172,7 +172,7 @@ void ANetHandler::InitGameHostType()
 void ANetHandler::Tick_UEClient(float DeltaTime)
 {
 	//// 테스트
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("마지막 수신 서버틱: %i 로컬틱: %i"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetServerTick(), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick()));
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("마지막 수신 서버틱: %i 로컬틱: %i, 델타: %f"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetServerTick(), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick(), DeltaTime));
 
 
 	//// 수신
@@ -224,7 +224,7 @@ void ANetHandler::Tick_UEClient(float DeltaTime)
 void ANetHandler::Tick_UEServer(float DeltaTime)
 {
 	//// 테스트
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("틱: %i"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick()));
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("틱: %i 델타: %f"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick(), DeltaTime));
 
 
 	AccumulatedTickTime += DeltaTime;
@@ -244,6 +244,7 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 		((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::LOGIC_EVENT;
 		((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_STATE;
 		((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
+		((PacketHeader*)(writeBuf->GetBuf()))->deltaTime = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta();
 		GetSessionShared()->PushSendQueue(writeBuf);
 	}
 

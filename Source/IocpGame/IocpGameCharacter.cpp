@@ -84,10 +84,11 @@ void AIocpGameCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 	}
 }
 
-void AIocpGameCharacter::Move(const FInputActionValue& Value)
+void AIocpGameCharacter::Move(const FInputActionValue& Value, float DeltaRatio)
 {
 	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
+	UE_LOG(LogTemp, Log, TEXT("틱 %i Move"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick());
 
 	if (Controller != nullptr)
 	{
@@ -102,8 +103,8 @@ void AIocpGameCharacter::Move(const FInputActionValue& Value)
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
 		// add movement 
-		AddMovementInput(ForwardDirection, MovementVector.Y);
-		AddMovementInput(RightDirection, MovementVector.X);
+		AddMovementInput(ForwardDirection, MovementVector.Y * DeltaRatio); // DeltaRatio - 클라: 1.0f; 서버: 클라 델타 / 서버 델타
+		AddMovementInput(RightDirection, MovementVector.X * DeltaRatio);
 	}
 }
 
@@ -120,7 +121,7 @@ void AIocpGameCharacter::Move_Entry(const FInputActionValue& Value)
 		case HostTypeEnum::LOGIC_SERVER:
 		case HostTypeEnum::LOGIC_SERVER_HEADLESS:
 			{
-				Move_UEServer(Value);
+				Move_UEServer(Value, 1.0f); // 디버깅 목적으로 서버에서 키 인풋으로 직접 움직이는 경우는 DeltaRatio 1로 설정
 				break;
 			}
 		case HostTypeEnum::NONE:
@@ -131,8 +132,7 @@ void AIocpGameCharacter::Move_Entry(const FInputActionValue& Value)
 
 void AIocpGameCharacter::Move_UEClient(const FInputActionValue& Value)
 {
-	Move(Value);
-	UE_LOG(LogTemp, Warning, TEXT("%f %f"), Value.Get<FVector2D>().X, Value.Get<FVector2D>().Y);
+	Move(Value, 1.0f);
 
 	// TESTING
 	TSharedPtr<SendBuffer> writeBuf;
@@ -146,12 +146,13 @@ void AIocpGameCharacter::Move_UEClient(const FInputActionValue& Value)
 	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_EVENT_ON_RECV;
 	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_INPUT;
 	((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
+	((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta();
 	NetHandler->GetSessionShared()->PushSendQueue(writeBuf);
 }
 
-void AIocpGameCharacter::Move_UEServer(const FInputActionValue& Value)
+void AIocpGameCharacter::Move_UEServer(const FInputActionValue& Value, float DeltaRatio)
 {
-	Move(Value);
+	Move(Value, DeltaRatio);
 	return;
 }
 
@@ -209,5 +210,6 @@ void AIocpGameCharacter::Jump_UEServer()
 	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::LOGIC_EVENT;
 	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::ACTOR_PHYSICS;
 	((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
+	((PacketHeader*)(writeBuf->GetBuf()))->deltaTime = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta();
 	NetHandler->GetSessionShared()->PushSendQueue(writeBuf);
 }

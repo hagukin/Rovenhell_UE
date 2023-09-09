@@ -55,14 +55,12 @@ bool InputApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, TSharedPt
 	deserializer->Deserialize((SD_Data*)inputData);
 	FVector2D vec(inputData->X, inputData->Y);
 
-	UE_LOG(LogTemp, Warning, TEXT("%i: %f %f"), inputData->ActionType, inputData->X, inputData->Y);
-
 	//////////// TESTING
 	for (TActorIterator<AIocpGameCharacter> iter(GameInstance->GetWorld()); iter; ++iter)
 	{
 		if (inputData->ActionType == (uint32)ActionTypeEnum::MOVE)
 		{
-			(*iter)->Move_UEServer(FInputActionValue(vec));
+			(*iter)->Move_UEServer(FInputActionValue(vec), ((PacketHeader*)packet->GetBuf())->deltaTime / Cast<URovenhellGameInstance>(GameInstance)->TickCounter->GetDelta());
 		}
 	}
 	return true;

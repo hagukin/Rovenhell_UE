@@ -9,6 +9,7 @@ GameTickCounter::GameTickCounter()
 
 void GameTickCounter::Tick(float DeltaTime)
 {
+	lastDelta = DeltaTime;
 	if (TotalTickCount == GFrameCounter) // 한 프레임 당 여러 번 호출 방지
 		return;
 	TotalTickCount = (uint32)GFrameCounter;

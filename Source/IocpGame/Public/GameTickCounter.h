@@ -17,10 +17,12 @@ public:
 
 	const uint32 GetTick(); // 서버: True game tick 반환; 클라: 로컬 게임 틱 카운트 반환
 	const uint32 GetServerTick() { return ServerTick; }
+	const float GetDelta() { return lastDelta; }
 	void SetServerTick_UEClient(uint32 tick);
 
 public:
-	const float DESIRED_DELTATIME = 0.0166; // TODO: Framerate Sync 문제
+	const float DESIRED_DELTATIME = 0.0166;
+	float lastDelta = 0.0f;
 
 private:
 	uint32 TotalTickCount = 0; // 로컬 총 이벤트 틱 수 (GFrameCounter)
