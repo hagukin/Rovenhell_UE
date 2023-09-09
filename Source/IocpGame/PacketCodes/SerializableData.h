@@ -5,43 +5,20 @@
 #include "CoreMinimal.h"
 #include "Engine/Level.h"
 
-class SD_Actor
+class SD_Transform
 {
 public:
-	SD_Actor() {};
-	SD_Actor(const AActor* Actor)
+	SD_Transform() {};
+	SD_Transform(const FTransform* transform)
 	{
-		const FTransform& transform = Actor->GetTransform();
-		xLoc = transform.GetLocation().X;
-		yLoc = transform.GetLocation().Y;
-		zLoc = transform.GetLocation().Z;
-
-		xRot = transform.GetRotation().X;
-		yRot = transform.GetRotation().Y;
-		zRot = transform.GetRotation().Z;
-
-		xVel = Actor->GetVelocity().X;
-		yVel = Actor->GetVelocity().Y;
-		zVel = Actor->GetVelocity().Z;
+		Transform = *transform;
 	}
 
-	friend FArchive& operator<<(FArchive& Archive, SD_Actor& Data)
+	friend FArchive& operator<<(FArchive& Archive, SD_Transform& Data)
 	{
-		Archive << Data.xLoc;
-		Archive << Data.yLoc;
-		Archive << Data.zLoc;
-
-		Archive << Data.xRot;
-		Archive << Data.yRot;
-		Archive << Data.zRot;
-
-		Archive << Data.xVel;
-		Archive << Data.yVel;
-		Archive << Data.zVel;
+		Archive << Data.Transform;
 		return Archive;
 	}
 
-	float xLoc = 0, yLoc = 0, zLoc = 0;
-	float xRot = 0, yRot = 0, zRot = 0;
-	float xVel = 0, yVel = 0, zVel = 0;
+	FTransform Transform;
 };

@@ -162,8 +162,8 @@ void AIocpGameCharacter::Jump_UEClient()
 	TSharedPtr<SendBuffer> writeBuf;
 	while (!writeBuf) writeBuf = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
 	NetHandler->GetSerializerShared()->Clear();
-	SD_Actor* actorData = new SD_Actor(this);
-	NetHandler->GetSerializerShared()->SerializeActor(actorData);
+	SD_Transform* transformData = new SD_Transform(&this->GetTransform());
+	NetHandler->GetSerializerShared()->SerializeTransform(transformData);
 	NetHandler->GetSerializerShared()->WriteDataToBuffer(writeBuf);
 	NetHandler->FillPacketSenderTypeHeader(writeBuf);
 	((PacketHeader*)(writeBuf->GetBuf()))->senderId = NetHandler->GetSessionShared()->GetSessionId();

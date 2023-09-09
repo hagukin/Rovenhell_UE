@@ -20,8 +20,8 @@ public:
 	bool Init();
 	void Clear();
 
-	bool SerializeActor(SD_Actor* inData); // TEST
-	bool DeserializeActor(SD_Actor* outData); // TEST
+	bool SerializeTransform(SD_Transform* inData); // TEST
+	bool DeserializeTransform(SD_Transform* outData); // TEST
 	bool WriteDataToBuffer(TSharedPtr<SendBuffer> writeBuffer); // TEST
 	bool ReadDataFromBuffer(TSharedPtr<RecvBuffer> readBuffer); // TEST
 

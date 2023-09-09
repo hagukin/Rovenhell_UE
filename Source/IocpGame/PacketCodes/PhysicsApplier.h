@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "PacketApplier.h"
+#include "RovenhellGameInstance.h"
 
 /**
  * 
@@ -16,4 +17,6 @@ public:
 
 	bool Init(TSharedPtr<NetSession> session, UGameInstance* gameInstance);
 	bool ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer) override;
+	bool ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer);
+	bool ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer);
 };
