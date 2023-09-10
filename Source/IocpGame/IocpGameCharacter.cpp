@@ -39,6 +39,10 @@ AIocpGameCharacter::AIocpGameCharacter()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // 스프링암 끝 소켓에 고정
 	FollowCamera->bUsePawnControlRotation = false; // 회전X, 스프링암에 고정
+
+	// 네트워크 싱킹
+	SyncComp = CreateDefaultSubobject<UActorSyncComponent>(TEXT("SyncComp"));
+	this->AddOwnedComponent(SyncComp);
 }
 
 void AIocpGameCharacter::BeginPlay()
@@ -73,7 +77,6 @@ void AIocpGameCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 	{
 		// 점프
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Triggered, this, &AIocpGameCharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AIocpGameCharacter::JumpStart); // 누른 최초 1회
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &AIocpGameCharacter::StopJumping);
 
 		// 이동
@@ -88,7 +91,7 @@ void AIocpGameCharacter::Move(const FInputActionValue& Value, float DeltaRatio)
 {
 	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
-	UE_LOG(LogTemp, Log, TEXT("틱 %i Move"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick());
+	//UE_LOG(LogTemp, Log, TEXT("틱 %i Move"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick());
 
 	if (Controller != nullptr)
 	{
@@ -167,49 +170,4 @@ void AIocpGameCharacter::Look(const FInputActionValue& Value)
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
 	}
-}
-
-void AIocpGameCharacter::JumpStart() // 테스트용 함수; OnTrigger와 다르게 시작시점 딱 한 틱에서 실행
-{
-	switch (NetHandler->GetHostType())
-	{
-		case HostTypeEnum::CLIENT:
-		case HostTypeEnum::CLIENT_HEADLESS:
-			{
-				Jump_UEClient();
-				break;
-			}
-		case HostTypeEnum::LOGIC_SERVER:
-		case HostTypeEnum::LOGIC_SERVER_HEADLESS:
-			{
-				Jump_UEServer();
-				break;
-			}
-		case HostTypeEnum::NONE:
-		default:
-			break;
-	}
-}
-
-void AIocpGameCharacter::Jump_UEClient()
-{
-	
-}
-
-void AIocpGameCharacter::Jump_UEServer()
-{
-	// TESTING
-	TSharedPtr<SendBuffer> writeBuf;
-	while (!writeBuf) writeBuf = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
-	NetHandler->GetSerializerShared()->Clear();
-	SD_Transform* transformData = new SD_Transform(&this->GetTransform());
-	NetHandler->GetSerializerShared()->Serialize((SD_Data*)transformData);
-	NetHandler->GetSerializerShared()->WriteDataToBuffer(writeBuf);
-	NetHandler->FillPacketSenderTypeHeader(writeBuf);
-	((PacketHeader*)(writeBuf->GetBuf()))->senderId = NetHandler->GetSessionShared()->GetSessionId();
-	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::LOGIC_EVENT;
-	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::ACTOR_PHYSICS;
-	((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
-	((PacketHeader*)(writeBuf->GetBuf()))->deltaTime = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta();
-	NetHandler->GetSessionShared()->PushSendQueue(writeBuf);
 }

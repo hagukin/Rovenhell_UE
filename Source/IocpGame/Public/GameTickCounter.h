@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 
+const float DESIRED_SERVER_BROADCAST_TIME = 0.2; // 200ms
+const float DESIRED_DELTATIME = 0.0166;
+
 class IOCPGAME_API GameTickCounter : public FTickableGameObject
 {
 public:
@@ -21,13 +24,11 @@ public:
 	void SetServerTick_UEClient(uint32 tick);
 
 public:
-	const float DESIRED_DELTATIME = 0.0166;
 	float lastDelta = 0.0f;
 
 private:
 	uint32 TotalTickCount = 0; // 로컬 총 이벤트 틱 수 (GFrameCounter)
 	uint32 LastUETick = 0; // 마지막 서버 틱 수신 시점에서의 언리얼 게임 틱 번호
 	uint32 ServerTick = 0; // 마지막으로 서버로부터 수신한 게임 틱
-
 	uint32 LocalTickPassed = 0; // 마지막 서버 틱 수신 시점 이후 경과한 로컬 틱
 };

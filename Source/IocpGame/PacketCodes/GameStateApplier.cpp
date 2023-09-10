@@ -2,6 +2,7 @@
 
 
 #include "GameStateApplier.h"
+#include "../IocpGameCharacter.h"
 
 GameStateApplier::GameStateApplier()
 {
@@ -43,7 +44,29 @@ bool GameStateApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<Ser
 
 bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer)
 {
-	Cast<URovenhellGameInstance>(GameInstance)->TickCounter->SetServerTick_UEClient(((PacketHeader*)(packet->GetBuf()))->tick); // 서버 틱과 동기화
+	uint32 tick = ((PacketHeader*)(packet->GetBuf()))->tick;
+	Cast<URovenhellGameInstance>(GameInstance)->TickCounter->SetServerTick_UEClient(tick); // 서버 틱과 동기화
+
+
+	////////// TEST
+	deserializer->Clear();
+	SD_ActorPhysics* physicsData = new SD_ActorPhysics();
+	deserializer->ReadDataFromBuffer(packet);
+	deserializer->Deserialize((SD_Data*)physicsData);
+	//UE_LOG(LogTemp, Warning, TEXT("%f %f %f / %f %f %f / %f %f %f"), transformData->Transform.GetLocation().X, transformData->Transform.GetLocation().Y, transformData->Transform.GetLocation().Z, transformData->Transform.GetRotation().X, transformData->Transform.GetRotation().Y, transformData->Transform.GetRotation().Z);
+
+	// 테스트
+	// 클라 연산 결과와 비교하는 로직이 필요
+	for (TActorIterator<AIocpGameCharacter> iter(GameInstance->GetWorld()); iter; ++iter)
+	{
+		FVector velocity(physicsData->xVelocity, physicsData->yVelocity, physicsData->zVelocity);
+		uint32 syncTick = (*iter)->GetSyncComp()->IsActorInSyncWith(tick, physicsData->Transform, velocity);
+		if (!syncTick)
+		{
+			(*iter)->GetSyncComp()->AdjustActorPhysics(((PacketHeader*)(packet->GetBuf()))->deltaTime, tick, physicsData->Transform, velocity);
+		}
+		break;
+	}
 	return true;
 }
 

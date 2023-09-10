@@ -229,20 +229,23 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 
 	AccumulatedTickTime += DeltaTime;
 	// 인터벌마다 서버 정보를 Broadcast한다
-	if (AccumulatedTickTime >= SERVER_TICK_INTERVAL)
+	if (AccumulatedTickTime >= DESIRED_SERVER_BROADCAST_TIME)
 	{
 		AccumulatedTickTime = 0;
 
 
 		// TESTING
-		T_BYTE testPacket[1] = { T_BYTE(81) };
+		// 게임 스테이트를 보내는 게 맞지만 테스트를 위해 플레이어 트랜스폼 전송 후 싱크 테스트
 		TSharedPtr<SendBuffer> writeBuf;
 		while (!writeBuf) writeBuf = GetSessionShared()->BufManager->SendPool->PopBuffer();
-		writeBuf->Write(testPacket, sizeof(testPacket));
+		GetSerializerShared()->Clear();
+		SD_ActorPhysics* physicsData = new SD_ActorPhysics(*UGameplayStatics::GetPlayerCharacter(this, 0));
+		GetSerializerShared()->Serialize((SD_Data*)physicsData);
+		GetSerializerShared()->WriteDataToBuffer(writeBuf);
 		FillPacketSenderTypeHeader(writeBuf);
 		((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();
 		((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::LOGIC_EVENT;
-		((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_STATE;
+		((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_STATE; //////// TESTING
 		((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
 		((PacketHeader*)(writeBuf->GetBuf()))->deltaTime = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta();
 		GetSessionShared()->PushSendQueue(writeBuf);
@@ -256,7 +259,6 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 		while (!Session->Receiver->RecvPriorityQueue.IsEmpty())
 		{
 			Session->Receiver->RecvPriorityQueue.HeapPop(node);
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("정렬 순서 %i"), ((PacketHeader*)node.recvBuffer->GetBuf())->tick));
 			SortedRecvPendings.Enqueue(node.recvBuffer);
 		}
 		Session->Receiver->Lock.Unlock();

@@ -3,7 +3,7 @@
 
 #include "PhysicsApplier.h"
 #include "MyUtility.h"
-#include "../IocpGameCharacter.h"
+#include "RovenhellGameInstance.h"
 
 PhysicsApplier::PhysicsApplier()
 {
@@ -45,19 +45,6 @@ bool PhysicsApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<Seria
 
 bool PhysicsApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer)
 {
-	deserializer->Clear();
-	SD_Transform* transformData = new SD_Transform();
-	deserializer->ReadDataFromBuffer(packet);
-	deserializer->Deserialize((SD_Data*)transformData);
-	UE_LOG(LogTemp, Warning, TEXT("%f %f %f / %f %f %f / %f %f %f"), transformData->Transform.GetLocation().X, transformData->Transform.GetLocation().Y, transformData->Transform.GetLocation().Z, transformData->Transform.GetRotation().X, transformData->Transform.GetRotation().Y, transformData->Transform.GetRotation().Z);
-
-	// 테스트
-	// 애니메이션 적용 X
-	for (TActorIterator<AIocpGameCharacter> iter(GameInstance->GetWorld()); iter; ++iter)
-	{
-		(*iter)->SetActorTransform(transformData->Transform);
-		break;
-	}
 	return true;
 }
 

@@ -7,6 +7,7 @@
 #include "InputActionValue.h"
 #include "NetHandler.h"
 #include "NetCodes/NetBuffer.h"
+#include "ActorSyncComponent.h"
 #include "IocpGameCharacter.generated.h"
 
 
@@ -22,12 +23,8 @@ public:
 	void Move_UEClient(const FInputActionValue& Value);
 	void Move_UEServer(const FInputActionValue& Value, float DeltaRatio);
 
-	void Look(const FInputActionValue& Value);
-	// TODO
-
-	void JumpStart();
-	void Jump_UEClient();
-	void Jump_UEServer();
+	void Look(const FInputActionValue& Value); // TODO
+	// TODO JUMP
 
 protected:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -36,6 +33,7 @@ protected:
 public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	FORCEINLINE class UActorSyncComponent* GetSyncComp() const { return SyncComp; }
 
 private:
 	//// 컴포넌트
@@ -46,6 +44,10 @@ private:
 	// 카메라
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
+
+	// 네트워크 싱크
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Network, meta = (AllowPrivateAccess = "true"))
+	class UActorSyncComponent* SyncComp;
 
 
 	//// 인풋 액션

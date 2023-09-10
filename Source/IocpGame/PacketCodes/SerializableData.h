@@ -36,6 +36,45 @@ public:
 };
 
 
+class SD_ActorPhysics : SD_Data
+{
+public:
+	SD_ActorPhysics() {};
+	SD_ActorPhysics(const AActor& actor)
+	{
+		Transform = actor.GetTransform();
+		xVelocity = actor.GetVelocity().X;
+		yVelocity = actor.GetVelocity().Y;
+		zVelocity = actor.GetVelocity().Z;
+	}
+	SD_ActorPhysics(const FTransform& transform, const FVector& velocity)
+	{
+		Transform = transform;
+		xVelocity = velocity.X;
+		yVelocity = velocity.Y;
+		zVelocity = velocity.Z;
+	}
+
+	friend FArchive& operator<<(FArchive& Archive, SD_ActorPhysics& Data)
+	{
+		Archive << Data.Transform;
+		Archive << Data.xVelocity;
+		Archive << Data.yVelocity;
+		Archive << Data.zVelocity;
+		return Archive;
+	}
+
+	void Serialize(FMemoryWriter& writer) override { writer << *this; }
+	void Deserialize(FMemoryReader& reader) override { reader << *this; }
+
+public:
+	FTransform Transform;
+	double xVelocity = 0.f;
+	double yVelocity = 0.f;
+	double zVelocity = 0.f;
+};
+
+
 // InputAction과 InputActionValue에 대한 정보를 담는다
 class SD_GameInput : SD_Data
 {

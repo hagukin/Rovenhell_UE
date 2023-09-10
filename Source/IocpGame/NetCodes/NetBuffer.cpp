@@ -1,5 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 #include "NetBuffer.h"
+#include "GameTickCounter.h"
 
 NetBuffer::NetBuffer() : CAPACITY((uint32)(MAX_BUFFER_CAPACITY))
 {
@@ -118,7 +119,7 @@ void SendBuffer::SetDefaultHeader()
 	((PacketHeader*)Buffer)->protocol = PacketProtocol::NO_PROTOCOL;
 	((PacketHeader*)Buffer)->id = PacketId::DEFAULT;
 	((PacketHeader*)Buffer)->tick = 0;
-	((PacketHeader*)Buffer)->deltaTime = 0.016f;
+	((PacketHeader*)Buffer)->deltaTime = DESIRED_DELTATIME;
 
 	BufferSize = sizeof(PacketHeader); // += 가 아니라 = 임에 유의
 }

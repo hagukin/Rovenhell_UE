@@ -13,6 +13,7 @@
 #include "../PacketCodes/GameStateApplier.h"
 #include "../PacketCodes/MiddlemanPacketApplier.h"
 #include "../PacketCodes/SerializeManager.h"
+#include "GameTickCounter.h"
 #include "RovenhellGameInstance.h"
 #include "GameFramework/Actor.h"
 #include "NetHandler.generated.h"
@@ -68,6 +69,5 @@ private:
 
 private:
 	/* UE_SERVER */
-	const float SERVER_TICK_INTERVAL = 0.2f; // ms
 	float AccumulatedTickTime = 0.0f; // ms
 };
