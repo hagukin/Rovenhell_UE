@@ -172,20 +172,24 @@ void ANetHandler::InitGameHostType()
 void ANetHandler::Tick_UEClient(float DeltaTime)
 {
 	//// 테스트
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("마지막 수신 서버틱: %i 로컬틱: %i, 델타: %f"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetServerTick(), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick(), DeltaTime));
+	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("마지막 수신 서버틱: %i 로컬틱: %i, 델타: %f"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetServerTick(), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick(), DeltaTime));
 
 
 	//// 수신
 	// 1 event tick에 하나의 패킷을 처리
-	while (!RecvPending && !Session->Receiver->RecvPriorityQueue.IsEmpty())
+	while (!RecvPending)
 	{
-		RecvPriorityQueueNode node;
-
 		while (!Session->Receiver->Lock.TryLock());
-		Session->Receiver->RecvPriorityQueue.HeapPop(node);
+		for (auto& pair : Session->Receiver->PendingClientBuffers)
+		{
+			if (!pair.Value->IsEmpty())
+			{
+				pair.Value->Dequeue(RecvPending);
+				break; // NOTE: 현재는 서버가 하나라는 전제 하에 바로 break 중이지만, 추후 만일 분산서버 연산을 처리할 경우 수정이 필요함.
+			}
+		}
 		Session->Receiver->Lock.Unlock();
-
-		RecvPending = node.recvBuffer;
+		if (!RecvPending) break; // 모든 세션으로부터 어떠한 대기 패킷도 없을 경우
 
 		uint16 recvBufferProtocol = ((PacketHeader*)RecvPending->GetBuf())->protocol;
 		switch (recvBufferProtocol)
@@ -197,9 +201,8 @@ void ANetHandler::Tick_UEClient(float DeltaTime)
 			}
 			// 클라이언트가 처리할 수 없는 프로토콜
 			case PacketProtocol::NO_PROTOCOL:
-			case PacketProtocol::CLIENT_EVENT_ON_RECV:
-			case PacketProtocol::CLIENT_EVENT_ON_TICK_STRICT:
-			case PacketProtocol::CLIENT_EVENT_ON_TICK_LOOSE:
+			case PacketProtocol::CLIENT_ONCE_PER_TICK:
+			case PacketProtocol::CLIENT_ALLOW_MULTIPLE_PER_TICK:
 			{
 				UE_LOG(LogTemp, Warning, TEXT("클라이언트에서 처리할 수 없는 잘못된 패킷 프로토콜 %i입니다. 패킷을 무시합니다."), recvBufferProtocol);
 				Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
@@ -221,18 +224,34 @@ void ANetHandler::Tick_UEClient(float DeltaTime)
 	}
 }
 
+void ANetHandler::StartingNewGameTick_UEServer()
+{
+	if (!RecvPendings.IsEmpty() || RecvPending)
+	{
+		UE_LOG(LogTemp, Error, TEXT("마지막 게임 틱에서 처리되지 못한 패킷이 남아 있습니다. 해당 패킷은 삭제됩니다."));
+	}
+	RecvPendings.Empty();
+	RecvPending = nullptr;
+
+	for (auto& element : HasProcessedOncePerTickPacket)
+	{
+		element.Value = false;
+		// TODO: 접속 해제된 세션 항목 삭제
+	}
+}
+
 void ANetHandler::Tick_UEServer(float DeltaTime)
 {
 	//// 테스트
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("틱: %i 델타: %f"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick(), DeltaTime));
+	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("틱: %i 델타: %f"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick(), DeltaTime));
 
+	StartingNewGameTick_UEServer();
 
 	AccumulatedTickTime += DeltaTime;
 	// 인터벌마다 서버 정보를 Broadcast한다
 	if (AccumulatedTickTime >= DESIRED_SERVER_BROADCAST_TIME)
 	{
 		AccumulatedTickTime = 0;
-
 
 		// TESTING
 		// 게임 스테이트를 보내는 게 맞지만 테스트를 위해 플레이어 트랜스폼 전송 후 싱크 테스트
@@ -251,22 +270,22 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 		GetSessionShared()->PushSendQueue(writeBuf);
 	}
 
-	// 처리 대기 큐가 비어있다면 바로 가져온다
-	if (SortedRecvPendings.IsEmpty())
+	// 이번 틱에 처리할 패킷들을 세션별로 하나씩 가져온다
+	while (!Session->Receiver->Lock.TryLock());
+	for (auto& pair : Session->Receiver->PendingClientBuffers)
 	{
-		RecvPriorityQueueNode node;
-		while (!Session->Receiver->Lock.TryLock());
-		while (!Session->Receiver->RecvPriorityQueue.IsEmpty())
+		if (!pair.Value->IsEmpty())
 		{
-			Session->Receiver->RecvPriorityQueue.HeapPop(node);
-			SortedRecvPendings.Enqueue(node.recvBuffer);
+			AddToRecvPendings = nullptr;
+			pair.Value->Dequeue(AddToRecvPendings);
+			RecvPendings.Enqueue(AddToRecvPendings);
 		}
-		Session->Receiver->Lock.Unlock();
 	}
+	Session->Receiver->Lock.Unlock();
 
 	//// 수신
 	// 같은 틱 값을 가진 패킷들을 묶어 처리한다
-	while (!SortedRecvPendings.IsEmpty() || RecvPending) // TODO: calculatingTick에 해당하는 패킷들의 처리가 다 안끝났어도 1 frame 제한 시간을 초과할 경우 다음 함수 콜에서 처리하도록 미루는 기능
+	while (!RecvPendings.IsEmpty() || RecvPending) // TODO: calculatingTick에 해당하는 패킷들의 처리가 다 안끝났어도 1 frame 제한 시간을 초과할 경우 다음 함수 콜에서 처리하도록 미루는 기능
 	{
 		if (RecvPending)
 		{
@@ -278,50 +297,50 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 			Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
 			RecvPending = nullptr;
 		}
-		if (!SortedRecvPendings.IsEmpty())
+		if (!RecvPendings.IsEmpty())
 		{
-			SortedRecvPendings.Dequeue(RecvPending);
+			RecvPendings.Dequeue(RecvPending);
 
-			uint32 recvBufferTick = ((PacketHeader*)RecvPending->GetBuf())->tick;
+			uint64 sessionId = ((PacketHeader*)RecvPending->GetBuf())->senderId;
 			uint16 recvBufferProtocol = ((PacketHeader*)RecvPending->GetBuf())->protocol;
-			if (recvBufferTick > lastAppliedTick)
+			switch (recvBufferProtocol)
 			{
-				lastAppliedTick = recvBufferTick; // 다음 함수 콜에서 처리해야 할 틱 번호 설정
-				break;
-			}
-			else if (recvBufferTick < lastAppliedTick)
-			{
-				switch (recvBufferProtocol)
+				// 틱에 여러 번 처리 가능
+				case PacketProtocol::CLIENT_ALLOW_MULTIPLE_PER_TICK:
+				case PacketProtocol::MIDDLEMAN_EVENT:
 				{
-					// 순서 지났더라도 처리 보장
-					case PacketProtocol::CLIENT_EVENT_ON_TICK_LOOSE:
-						UE_LOG(LogTemp, Warning, TEXT("패킷 처리 순서가 지켜지지 않았습니다. 패킷을 발송한 클라이언트의 네트워크 지연시간이 다른 클라이언트와 크게 차이가 날 가능성이 있습니다."));
-						// fallthrough intended
-					case PacketProtocol::CLIENT_EVENT_ON_RECV:
-					case PacketProtocol::MIDDLEMAN_EVENT:
-						{
-							break;
-						}
-					// 순서 고려하는 경우
-					case PacketProtocol::CLIENT_EVENT_ON_TICK_STRICT:
-						{
-							UE_LOG(LogTemp, Warning, TEXT("순서가 지나간 패킷을 무시합니다. 패킷을 발송한 클라이언트의 네트워크 지연시간이 다른 클라이언트와 크게 차이가 날 가능성이 있습니다."));
-							Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
-							RecvPending = nullptr;
-							break;
-						}
-					// 로직 서버가 처리할 수 없는 프로토콜
-					case PacketProtocol::NO_PROTOCOL:
-					case PacketProtocol::LOGIC_EVENT:
-						{
-							UE_LOG(LogTemp, Warning, TEXT("로직서버에서 처리할 수 없는 잘못된 패킷 프로토콜 %i입니다. 패킷을 무시합니다."), recvBufferProtocol);
-							Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
-							RecvPending = nullptr;
-							break;
-						}
+					break;
+				}
+				// 틱 당 한 번만 처리
+				case PacketProtocol::CLIENT_ONCE_PER_TICK:
+				{
+					if (!HasProcessedOncePerTickPacket.Contains(sessionId))
+					{
+						HasProcessedOncePerTickPacket.Add(sessionId, false); // 새 항목 추가
+					}
+
+					if (*HasProcessedOncePerTickPacket.Find(sessionId))
+					{
+						UE_LOG(LogTemp, Warning, TEXT("알 수 없는 이유로 동일한 세션에서 틱당 한 번 처리해야 하는 패킷을 여러 차례 처리하려 시도 중입니다. 해당 패킷은 무시됩니다."));
+						Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
+						RecvPending = nullptr;
+					}
+					else
+					{
+						HasProcessedOncePerTickPacket[sessionId] = true;
+					}
+					break;
+				}
+				// 로직 서버가 처리할 수 없는 프로토콜
+				case PacketProtocol::NO_PROTOCOL:
+				case PacketProtocol::LOGIC_EVENT:
+				{
+					UE_LOG(LogTemp, Warning, TEXT("로직서버에서 처리할 수 없는 잘못된 패킷 프로토콜 %i입니다. 패킷을 무시합니다."), recvBufferProtocol);
+					Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
+					RecvPending = nullptr;
+					break;
 				}
 			}
-			// 처리 순서에 해당될 경우 continue 해서 처리
 		}
 	}
 }

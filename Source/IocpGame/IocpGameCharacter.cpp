@@ -95,6 +95,8 @@ void AIocpGameCharacter::Move(const FInputActionValue& Value, float DeltaRatio)
 
 	if (Controller != nullptr)
 	{
+		UE_LOG(LogTemp, Log, TEXT("MOVE %i"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick());
+
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
@@ -105,9 +107,9 @@ void AIocpGameCharacter::Move(const FInputActionValue& Value, float DeltaRatio)
 		// get right vector 
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
-		// add movement 
-		AddMovementInput(ForwardDirection, MovementVector.Y * DeltaRatio); // DeltaRatio - 클라: 1.0f; 서버: 클라 델타 / 서버 델타
-		AddMovementInput(RightDirection, MovementVector.X * DeltaRatio);
+		// AddMovementInput은 내부적으로 Delta 연산을 해준다
+		AddMovementInput(ForwardDirection, MovementVector.Y); // *DeltaRatio); // DeltaRatio - 클라: 1.0f; 서버: 클라 델타 / 서버 델타
+		AddMovementInput(RightDirection, MovementVector.X); // *DeltaRatio);
 	}
 }
 
@@ -146,7 +148,7 @@ void AIocpGameCharacter::Move_UEClient(const FInputActionValue& Value)
 	NetHandler->GetSerializerShared()->WriteDataToBuffer(writeBuf);
 	NetHandler->FillPacketSenderTypeHeader(writeBuf);
 	((PacketHeader*)(writeBuf->GetBuf()))->senderId = NetHandler->GetSessionShared()->GetSessionId();
-	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_EVENT_ON_RECV;
+	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_ONCE_PER_TICK;
 	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_INPUT;
 	((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
 	((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta();

@@ -42,7 +42,7 @@ public:
 	bool IsSendQueueEmpty();
 
 	bool PushRecvQueue(TSharedPtr<RecvBuffer> recvBuffer); // 블로킹; 게임 처리가 필요한 버퍼를 대기열에 추가한다
-	bool IsRecvQueueEmpty();
+	bool IsRecvQueueEmpty(uint64 sessionId);
 	bool Recv(TSharedPtr<RecvBuffer> recvBuffer); // 블로킹 (단 RecvHandler 스레드에서 실행된다)
 
 	bool TryConnect(NetAddress connectAddr, int32 minutes, int32 seconds); // waitForMs 밀리세컨드 동안 Connect를 시도하고 결과를 반환한다 (Blocking)

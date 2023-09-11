@@ -108,6 +108,8 @@ void UActorSyncComponent::AdjustActorPhysics(float ServerDeltaTime, uint32 Tick,
 
 	GetOwner()->GetRootComponent()->ComponentVelocity = Velocity;
 	GetOwner()->SetActorTransform(newTransform);
+
+	DrawDebugSphere(GetWorld(), newTransform.GetLocation(), 10, 26, FColor(255, 0, 0), false, 1.0f, 0, 1);
 }
 
 double UActorSyncComponent::GetDifference(TList<ActorPhysics>* Node, const FTransform& Transform, const FVector& Velocity)

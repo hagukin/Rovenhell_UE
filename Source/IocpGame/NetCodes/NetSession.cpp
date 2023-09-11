@@ -117,17 +117,20 @@ bool NetSession::IsSendQueueEmpty()
 
 bool NetSession::PushRecvQueue(TSharedPtr<RecvBuffer> recvBuffer)
 {
-	RecvPriorityQueueNode node = { recvBuffer };
+	uint64 sessionId = ((PacketHeader*)recvBuffer->GetBuf())->senderId;
 	while (!Receiver->Lock.TryLock());
-	Receiver->RecvPriorityQueue.HeapPush(node);
+	if (!Receiver->PendingClientBuffers.Contains(sessionId))
+	{
+		Receiver->PendingClientBuffers.Add(sessionId, MakeShared<TQueue<TSharedPtr<RecvBuffer>>>());
+	}
+	(*(Receiver->PendingClientBuffers.Find(sessionId)))->Enqueue(recvBuffer);
 	Receiver->Lock.Unlock();
 	return true;
 }
 
-bool NetSession::IsRecvQueueEmpty()
+bool NetSession::IsRecvQueueEmpty(uint64 sessionId)
 {
-	return (Receiver->RecvPriorityQueue.IsEmpty());
-	// Lock-free
+	return ((*(Receiver->PendingClientBuffers.Find(sessionId)))->IsEmpty());
 	// 큐를 Pop하는 스레드가 하나이기 때문에 락을 잡지 않아도 비어있는지 상태 확인은 할 수 있다
 }
 

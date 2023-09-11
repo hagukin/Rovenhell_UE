@@ -49,11 +49,17 @@ private:
 	bool DistributePendingPacket(); // RecvPending 패킷을 적절한 Applier에게 전달하고, 처리가 완료되면 버퍼 풀에 버퍼를 반환한다
 	
 	void Tick_UEClient(float DeltaTime);
+
+	void StartingNewGameTick_UEServer();
 	void Tick_UEServer(float DeltaTime);
 private:
 	TSharedPtr<NetSession> Session;
-	TSharedPtr<RecvBuffer> RecvPending = nullptr; // 처리를 대기중인 패킷
-	TQueue<TSharedPtr<RecvBuffer>> SortedRecvPendings; // 틱 순서대로 정렬된, 처리를 대기중인 패킷들
+	TSharedPtr<RecvBuffer> AddToRecvPendings = nullptr;
+	TQueue<TSharedPtr<RecvBuffer>> RecvPendings; // 이번 틱에 처리할 모든 패킷들
+	TSharedPtr<RecvBuffer> RecvPending = nullptr; // 처리를 대기중인 단일 패킷
+
+	TMap<uint64, bool> HasProcessedOncePerTickPacket; // 이번 틱에 어떤 세션의 ONCE_PER_TICK 프로토콜 패킷이 처리되었는가; 매 틱마다 각 항목이 false로 초기화된다
+
 	HostTypeEnum HostType = HostTypeEnum::NONE;
 
 	TUniquePtr<InputApplier> InApplier = nullptr;
