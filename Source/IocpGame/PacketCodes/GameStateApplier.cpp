@@ -57,13 +57,13 @@ bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, TShar
 
 	// 테스트
 	// 클라 연산 결과와 비교하는 로직이 필요
-	for (TActorIterator<AIocpGameCharacter> iter(GameInstance->GetWorld()); iter; ++iter)
+	for (TActorIterator<ANetSyncPawn> iter(GameInstance->GetWorld()); iter; ++iter) // TODO: ANetSyncActor
 	{
 		FVector velocity(physicsData->xVelocity, physicsData->yVelocity, physicsData->zVelocity);
 		uint32 syncTick = (*iter)->GetSyncComp()->IsActorInSyncWith(tick, physicsData->Transform, velocity);
 		if (!syncTick)
 		{
-			(*iter)->GetSyncComp()->AdjustActorPhysics(((PacketHeader*)(packet->GetBuf()))->deltaTime, tick, physicsData->Transform, velocity);
+			(*iter)->GetSyncComp()->AdjustActorPhysics(((PacketHeader*)(packet->GetBuf()))->deltaTime, tick, physicsData->Transform, velocity); //// TESTING
 		}
 		break;
 	}

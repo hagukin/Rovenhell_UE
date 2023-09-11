@@ -2,7 +2,7 @@
 
 
 #include "InputApplier.h"
-#include "../IocpGameCharacter.h"
+#include "PlayerPawn.h"
 
 InputApplier::InputApplier()
 {
@@ -56,11 +56,11 @@ bool InputApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, TSharedPt
 	FVector2D vec(inputData->X, inputData->Y);
 
 	//////////// TESTING
-	for (TActorIterator<AIocpGameCharacter> iter(GameInstance->GetWorld()); iter; ++iter)
+	for (TActorIterator<APlayerPawn> iter(GameInstance->GetWorld()); iter; ++iter)
 	{
 		if (inputData->ActionType == (uint32)ActionTypeEnum::MOVE)
 		{
-			(*iter)->Move_UEServer(FInputActionValue(vec), ((PacketHeader*)packet->GetBuf())->deltaTime / Cast<URovenhellGameInstance>(GameInstance)->TickCounter->GetDelta());
+			(*iter)->Move_UEServer(FInputActionValue(vec));
 		}
 	}
 	return true;

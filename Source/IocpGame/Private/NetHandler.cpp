@@ -258,7 +258,7 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 		TSharedPtr<SendBuffer> writeBuf;
 		while (!writeBuf) writeBuf = GetSessionShared()->BufManager->SendPool->PopBuffer();
 		GetSerializerShared()->Clear();
-		SD_ActorPhysics* physicsData = new SD_ActorPhysics(*UGameplayStatics::GetPlayerCharacter(this, 0));
+		SD_ActorPhysics* physicsData = new SD_ActorPhysics(*UGameplayStatics::GetPlayerPawn(this, 0));
 		GetSerializerShared()->Serialize((SD_Data*)physicsData);
 		GetSerializerShared()->WriteDataToBuffer(writeBuf);
 		FillPacketSenderTypeHeader(writeBuf);
