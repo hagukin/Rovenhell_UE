@@ -114,7 +114,11 @@ void UActorSyncComponent::AdjustActorPhysics(float ServerDeltaTime, uint32 Tick,
 
 double UActorSyncComponent::GetDifference(TList<ActorPhysics>* Node, const FTransform& Transform, const FVector& Velocity)
 {
-	return FVector::Dist(Node->Element.transform.GetLocation(), Transform.GetLocation()); // TODO: Velocity 고려 X
+	// CurrentTickNode, CurrentTickNode + 1틱 Node의 location을 이은 선분에서 얼마나 많이 벗어나 있는지에 비례한 값을 반환한다.
+	// 직선과 점의 거리를 구하는 것보다 더 빠른 휴리스틱을 사용한다 
+	// (A to C + B to C) - (A to B)
+	if (!Node->Next) return MAX_PHYSICS_DIFF_ALLOWED * 2;
+	return FVector::Dist(Node->Element.transform.GetLocation(), Transform.GetLocation()) + FVector::Dist(Node->Next->Element.transform.GetLocation(), Transform.GetLocation()) - FVector::Dist(Node->Element.transform.GetLocation(), Node->Next->Element.transform.GetLocation()); // Velocity 고려 X
 }
 
 void UActorSyncComponent::MoveHeadTo(uint32 Tick)

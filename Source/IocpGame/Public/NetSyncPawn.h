@@ -27,6 +27,7 @@ public:
 
 	FORCEINLINE class UActorSyncComponent* GetSyncComp() const { return SyncComp; }
 	FORCEINLINE class ANetHandler* GetNetHandler() const { return NetHandler; }
+	void SetNetHandler(ANetHandler* handler) { NetHandler = handler; }
 
 public:
 	//// 컴포넌트

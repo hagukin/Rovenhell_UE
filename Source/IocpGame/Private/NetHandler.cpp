@@ -8,7 +8,6 @@ ANetHandler::ANetHandler()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-
 }
 
 // Called when the game starts or when spawned
@@ -171,10 +170,6 @@ void ANetHandler::InitGameHostType()
 
 void ANetHandler::Tick_UEClient(float DeltaTime)
 {
-	//// 테스트
-	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("마지막 수신 서버틱: %i 로컬틱: %i, 델타: %f"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetServerTick(), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick(), DeltaTime));
-
-
 	//// 수신
 	// 1 event tick에 하나의 패킷을 처리
 	while (!RecvPending)
@@ -242,9 +237,6 @@ void ANetHandler::StartingNewGameTick_UEServer()
 
 void ANetHandler::Tick_UEServer(float DeltaTime)
 {
-	//// 테스트
-	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("틱: %i 델타: %f"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick(), DeltaTime));
-
 	StartingNewGameTick_UEServer();
 
 	AccumulatedTickTime += DeltaTime;
@@ -253,7 +245,7 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 	{
 		AccumulatedTickTime = 0;
 
-		// TESTING
+		//////// TESTING
 		// 게임 스테이트를 보내는 게 맞지만 테스트를 위해 플레이어 트랜스폼 전송 후 싱크 테스트
 		TSharedPtr<SendBuffer> writeBuf;
 		while (!writeBuf) writeBuf = GetSessionShared()->BufManager->SendPool->PopBuffer();
@@ -264,28 +256,32 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 		FillPacketSenderTypeHeader(writeBuf);
 		((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();
 		((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::LOGIC_EVENT;
-		((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_STATE; //////// TESTING
+		((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_STATE;
 		((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
 		((PacketHeader*)(writeBuf->GetBuf()))->deltaTime = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta();
 		GetSessionShared()->PushSendQueue(writeBuf);
 	}
 
-	// 이번 틱에 처리할 패킷들을 세션별로 하나씩 가져온다
+	// 이번 틱에 처리할 패킷들을 세션별로 하나 이상씩 가져온다
 	while (!Session->Receiver->Lock.TryLock());
 	for (auto& pair : Session->Receiver->PendingClientBuffers)
 	{
-		if (!pair.Value->IsEmpty())
+		while (!pair.Value->IsEmpty())
 		{
 			AddToRecvPendings = nullptr;
 			pair.Value->Dequeue(AddToRecvPendings);
 			RecvPendings.Enqueue(AddToRecvPendings);
+
+			// 핵심 로직: 1틱 당 복수 처리가 허용된 패킷의 경우에는 계속 꺼내온다
+			if (((PacketHeader*)(AddToRecvPendings->GetBuf()))->protocol == PacketProtocol::CLIENT_ONCE_PER_TICK) 
+				break;
 		}
 	}
 	Session->Receiver->Lock.Unlock();
 
 	//// 수신
 	// 같은 틱 값을 가진 패킷들을 묶어 처리한다
-	while (!RecvPendings.IsEmpty() || RecvPending) // TODO: calculatingTick에 해당하는 패킷들의 처리가 다 안끝났어도 1 frame 제한 시간을 초과할 경우 다음 함수 콜에서 처리하도록 미루는 기능
+	while (!RecvPendings.IsEmpty() || RecvPending)
 	{
 		if (RecvPending)
 		{

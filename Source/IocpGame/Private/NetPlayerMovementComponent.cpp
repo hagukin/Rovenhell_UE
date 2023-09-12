@@ -8,32 +8,28 @@ void UNetPlayerMovementComponent::TickComponent(float DeltaTime, ELevelTick Tick
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-    // 모든 것이 아직 유효한지, 이동 가능한지 확인합니다.
+    BeginTick();
+
     if (!PawnOwner || !UpdatedComponent || ShouldSkipUpdate(DeltaTime))
     {
         return;
     }
 
-    //FVector DesiredMovementThisFrame = ConsumeInputVector().GetClampedToMaxSize(1.0f) * DeltaTime * 200.0f;
-    //if (!DesiredMovementThisFrame.IsNearlyZero())
-    //{
-    //    FHitResult Hit;
-    //    SafeMoveUpdatedComponent(DesiredMovementThisFrame, UpdatedComponent->GetComponentRotation(), true, Hit);
-
-    //    // 무언가에 부딛혔으면, 돌아가 봅니다.
-    //    if (Hit.IsValidBlockingHit())
-    //    {
-    //        SlideAlongSurface(DesiredMovementThisFrame, 1.f - Hit.Time, Hit.Normal, Hit);
-    //    }
-    //}
-    //////////// TESTING
-    FVector DesiredMovementThisFrame = ConsumeInputVector().GetClampedToMaxSize(1.0f) * 10.0f;
-    PawnOwner->SetActorLocation(PawnOwner->GetActorLocation() + DesiredMovementThisFrame); ///// 임시 테스트 코드
+    // 이동 처리
+    // 서버의 경우 단일 폰에 대해 1틱에 여러 인풋을 처리할 수 있는데,
+    // 각 인풋별로 발송받은 델타 타임을 적용해 연산한다.
+    FVector DesiredMovementThisFrame(0, 0, 0);
+    for (const MoveInputData& DataPerInput : MoveDatas)
+    {
+        DesiredMovementThisFrame = DataPerInput.MoveVector.GetClampedToMaxSize(1.0f) * 100.0f * DataPerInput.DeltaTime; // 델타 타임 반영
+        PawnOwner->SetActorLocation(PawnOwner->GetActorLocation() + DesiredMovementThisFrame);
+    }
+    EndTick();
 }
 
 APlayerPawn* UNetPlayerMovementComponent::GetPlayerOwner()
 {
-    return (APlayerPawn*)(GetOwner()); // risky...
+    return (APlayerPawn*)(PawnOwner.Get()); // risky...
 }
 
 ANetHandler* UNetPlayerMovementComponent::GetNetHandler()
@@ -43,4 +39,18 @@ ANetHandler* UNetPlayerMovementComponent::GetNetHandler()
 		return playerOwner->GetNetHandler();
 	}
 	return nullptr;
+}
+
+void UNetPlayerMovementComponent::BeginTick()
+{
+}
+
+void UNetPlayerMovementComponent::EndTick()
+{
+    MoveDatas.Empty();
+}
+
+void UNetPlayerMovementComponent::AddMovementData(FVector MoveVector, float DeltaTime)
+{
+    MoveDatas.Add({ MoveVector, DeltaTime });
 }

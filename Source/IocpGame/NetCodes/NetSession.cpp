@@ -41,7 +41,6 @@ bool NetSession::Start()
 		ret = true;
 		// SendHandler와 RecvHandler 스레드를 가동한다.
 		ret &= StartSender();
-		// TODO: Receiver 가동
 		ret &= StartReceiver();
 	}
 	return ret;
@@ -61,7 +60,7 @@ bool NetSession::Kill()
 {
 	bool bKilled = true;
 	if (Sender) bKilled &= KillSend();
-	// if (Receiver) bKilled &= KillRecv(); // TODO
+	if (Receiver) bKilled &= KillRecv();
 	return bKilled;
 }
 
@@ -81,7 +80,13 @@ bool NetSession::KillSend()
 
 bool NetSession::KillRecv()
 {
-	// TODO
+	if (!Receiver) return false;
+	FRunnableThread* Thread = Receiver->GetThread();
+	if (Thread)
+	{
+		Thread->Kill(false);
+		return true;
+	}
 	return false;
 }
 
@@ -101,7 +106,7 @@ bool NetSession::PushSendQueue(TSharedPtr<SendBuffer> sendBuffer)
 bool NetSession::Send(TSharedPtr<SendBuffer> sendBuffer)
 {
 	bytesSent = 0;
-	while (!NetSock->GetSocket()->Send(sendBuffer.Get()->GetBuf(), sendBuffer.Get()->GetSize(), bytesSent)) // TODO: 추가 안전장치 - 시간 제한 등
+	while (!NetSock->GetSocket()->Send(sendBuffer.Get()->GetBuf(), sendBuffer.Get()->GetSize(), bytesSent))
 	{
 		if (!NetSock->IsConnected() || !NetSock->IsValid()) return false;
 	}

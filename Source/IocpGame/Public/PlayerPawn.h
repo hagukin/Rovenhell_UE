@@ -33,10 +33,10 @@ public:
 	FORCEINLINE virtual UPawnMovementComponent* GetMovementComponent() const override { return MovementComp; };
 
 	// 액션
-	void Move(const FInputActionValue& Value);
-	void Move_Entry(const FInputActionValue& Value);
-	void Move_UEClient(const FInputActionValue& Value);
-	void Move_UEServer(const FInputActionValue& Value);
+	void Move(const FInputActionValue& Value, float DeltaTime);
+	void Move_Entry(const FInputActionValue& Value); // 키 입력에 대한 처리
+	void Move_UEClient(const FInputActionValue& Value, float DeltaTime);
+	void Move_UEServer(const FInputActionValue& Value, float DeltaTime);
 	void Look(const FInputActionValue& Value);
 
 protected:

@@ -66,8 +66,10 @@ void APlayerPawn::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-void APlayerPawn::Move(const FInputActionValue& Value)
+void APlayerPawn::Move(const FInputActionValue& Value, float DeltaTime)
 {
+	// 실제 이동은 MovementComponent에서 처리한다.
+	// 여기서는 이동 요청을 처리한다.
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
 	AController* controller = GetController();
@@ -84,10 +86,7 @@ void APlayerPawn::Move(const FInputActionValue& Value)
 	const FVector forwardDirection = FRotationMatrix(yawRotation).GetUnitAxis(EAxis::X);
 	const FVector rightDirection = FRotationMatrix(yawRotation).GetUnitAxis(EAxis::Y);
 
-	MovementComp->AddInputVector(forwardDirection * MovementVector.Y);
-	MovementComp->AddInputVector(rightDirection * MovementVector.X);
-
-	UE_LOG(LogTemp, Log, TEXT("Move 벡터 Add, 틱 %i"), Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick());
+	MovementComp->AddMovementData((forwardDirection * MovementVector.Y) + (rightDirection * MovementVector.X), DeltaTime);
 }
 
 void APlayerPawn::Move_Entry(const FInputActionValue& Value)
@@ -104,13 +103,13 @@ void APlayerPawn::Move_Entry(const FInputActionValue& Value)
 		case HostTypeEnum::CLIENT:
 		case HostTypeEnum::CLIENT_HEADLESS:
 		{
-			Move_UEClient(Value);
+			Move_UEClient(Value, Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta()); // 클라이언트 사이드 연산에서는 현재 호스트 델타 사용
 			break;
 		}
 		case HostTypeEnum::LOGIC_SERVER:
 		case HostTypeEnum::LOGIC_SERVER_HEADLESS:
 		{
-			Move_UEServer(Value); // 디버깅 목적으로 서버에서 키 인풋으로 직접 움직이는 경우는 DeltaRatio 1로 설정
+			Move_UEServer(Value, Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta()); // 디버깅 목적으로 서버에서 키 인풋으로 직접 움직이는 경우는 서버 호스트 델타 사용
 			break;
 		}
 		case HostTypeEnum::NONE:
@@ -119,9 +118,9 @@ void APlayerPawn::Move_Entry(const FInputActionValue& Value)
 	}
 }
 
-void APlayerPawn::Move_UEClient(const FInputActionValue& Value)
+void APlayerPawn::Move_UEClient(const FInputActionValue& Value, float DeltaTime)
 {
-	Move(Value);
+	Move(Value, DeltaTime);
 
 	// TESTING
 	TSharedPtr<SendBuffer> writeBuf;
@@ -132,16 +131,16 @@ void APlayerPawn::Move_UEClient(const FInputActionValue& Value)
 	NetHandler->GetSerializerShared()->WriteDataToBuffer(writeBuf);
 	NetHandler->FillPacketSenderTypeHeader(writeBuf);
 	((PacketHeader*)(writeBuf->GetBuf()))->senderId = NetHandler->GetSessionShared()->GetSessionId();
-	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_ONCE_PER_TICK;
+	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_ALLOW_MULTIPLE_PER_TICK;
 	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_INPUT;
 	((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
-	((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta();
+	((PacketHeader*)(writeBuf->GetBuf()))->deltaTime = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta();
 	NetHandler->GetSessionShared()->PushSendQueue(writeBuf);
 }
 
-void APlayerPawn::Move_UEServer(const FInputActionValue& Value)
+void APlayerPawn::Move_UEServer(const FInputActionValue& Value, float DeltaTime)
 {
-	Move(Value);
+	Move(Value, DeltaTime);
 	return;
 }
 

@@ -42,7 +42,7 @@ private:
 
 	bool StartTicking = false;
 
-	const int32 MAX_TICK_DIFF_ALLOWED = 10; // 서버틱과의 허용 오차틱 (+-)
-	const double MAX_PHYSICS_DIFF_ALLOWED = 5.0; // 서버와의 물리 오차 허용 (cm)
+	const int32 MAX_TICK_DIFF_ALLOWED = 8; // 서버틱과의 허용 오차틱 (+-)
+	const double MAX_PHYSICS_DIFF_ALLOWED = 10.0; // 서버와의 물리 오차 허용 (cm)
 	const uint32 MAX_HISTORY_SIZE = 100; // 기록할 수 있는 최대 틱 히스토리 범위; Head Tick과 Tail Tick의 차이는 이 값을 넘지 않는다
 };

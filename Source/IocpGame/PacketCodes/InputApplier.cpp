@@ -55,12 +55,12 @@ bool InputApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, TSharedPt
 	deserializer->Deserialize((SD_Data*)inputData);
 	FVector2D vec(inputData->X, inputData->Y);
 
-	//////////// TESTING
+	// 모든 플레이어들의 인풋 처리
 	for (TActorIterator<APlayerPawn> iter(GameInstance->GetWorld()); iter; ++iter)
 	{
 		if (inputData->ActionType == (uint32)ActionTypeEnum::MOVE)
 		{
-			(*iter)->Move_UEServer(FInputActionValue(vec));
+			(*iter)->Move_UEServer(FInputActionValue(vec), ((PacketHeader*)(packet->GetBuf()))->deltaTime);
 		}
 	}
 	return true;
