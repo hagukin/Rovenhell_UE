@@ -118,8 +118,6 @@ void SendBuffer::SetDefaultHeader()
 	((PacketHeader*)Buffer)->senderId = 0;
 	((PacketHeader*)Buffer)->protocol = PacketProtocol::NO_PROTOCOL;
 	((PacketHeader*)Buffer)->id = PacketId::DEFAULT;
-	((PacketHeader*)Buffer)->tick = 0;
-	((PacketHeader*)Buffer)->deltaTime = DESIRED_DELTATIME;
 
 	BufferSize = sizeof(PacketHeader); // += 가 아니라 = 임에 유의
 }

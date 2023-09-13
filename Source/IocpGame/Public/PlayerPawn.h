@@ -10,6 +10,7 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "../Enumerations.h"
 #include "NetPlayerMovementComponent.h"
 #include "PlayerPawn.generated.h"
 
@@ -38,6 +39,9 @@ public:
 	void Move_UEClient(const FInputActionValue& Value, float DeltaTime);
 	void Move_UEServer(const FInputActionValue& Value, float DeltaTime);
 	void Look(const FInputActionValue& Value);
+
+	TSharedPtr<TArray<SD_GameInput>> GetGameInputPendings() { return GameInputPendings; }
+	void ClearGameInputPendings() { GameInputPendings->Empty(); }
 
 protected:
 	virtual void BeginPlay();
@@ -76,4 +80,8 @@ public:
 	// 시야
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction = nullptr; // BP
+
+private:
+	/* UEClient */
+	TSharedPtr<TArray<SD_GameInput>> GameInputPendings; // 서버로 발송 대기중인 클라이언트이 게임플레이 인풋들
 };

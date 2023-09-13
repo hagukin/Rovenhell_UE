@@ -2,6 +2,7 @@
 
 
 #include "NetHandler.h"
+#include "PlayerPawn.h"
 
 // Sets default values
 ANetHandler::ANetHandler()
@@ -96,7 +97,7 @@ void ANetHandler::Init()
 		port = 8888;
 	}
 	
-	NetAddress serverAddr(TEXT("127.0.0.1"), port);
+	NetAddress serverAddr(TEXT("127.0.0.1"), port); //////// TESTING
 
 	bool connected = Session->TryConnect(serverAddr, 0, 1); // TODO: 만약 일정시간동안 시도를 반복하는 방식을 사용할 경우, BeginPlay에서 이를 처리하는 것은 좋지 못함, 비동기적 처리가 필요
 	UE_LOG(LogTemp, Log, TEXT("커넥션 포트 번호: %i, 커넥션 상태: %d"), port, (int)connected);
@@ -170,6 +171,34 @@ void ANetHandler::InitGameHostType()
 
 void ANetHandler::Tick_UEClient(float DeltaTime)
 {
+	AccumulatedTickTime += DeltaTime;
+	// 인터벌마다 인풋 정보를 서버로 전송한다
+	if (AccumulatedTickTime >= CONSUME_HISTORY_BUFFER_CYCLE)
+	{
+		AccumulatedTickTime = 0;
+
+		// 플레이어 한 명이라 for loop의 부하는 없다
+		for (TActorIterator<APlayerPawn> iter(GetWorld()); iter; ++iter)
+		{
+			TSharedPtr<SendBuffer> writeBuf;
+			while (!writeBuf) writeBuf = Session->BufManager->SendPool->PopBuffer();
+			FillPacketSenderTypeHeader(writeBuf);
+
+			SD_GameInputHistory* inputHistory = new SD_GameInputHistory((*iter)->GetGameInputPendings());
+
+			Serializer->Serialize((SD_Data*)inputHistory);
+			Serializer->WriteDataToBuffer(writeBuf);
+			Serializer->Clear();
+
+			(*iter)->ClearGameInputPendings(); // 기존 인풋 히스토리를 전부 Flush한다
+
+			((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();
+			((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_ALLOW_MULTIPLE_PER_TICK;
+			((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_INPUT;
+			Session->PushSendQueue(writeBuf);
+		}
+	}
+
 	//// 수신
 	// 1 event tick에 하나의 패킷을 처리
 	while (!RecvPending)
@@ -257,8 +286,6 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 		((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();
 		((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::LOGIC_EVENT;
 		((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_STATE;
-		((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
-		((PacketHeader*)(writeBuf->GetBuf()))->deltaTime = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta();
 		GetSessionShared()->PushSendQueue(writeBuf);
 	}
 
@@ -272,7 +299,7 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 			pair.Value->Dequeue(AddToRecvPendings);
 			RecvPendings.Enqueue(AddToRecvPendings);
 
-			// 핵심 로직: 1틱 당 복수 처리가 허용된 패킷의 경우에는 계속 꺼내온다
+			// 1틱 당 복수 처리가 허용된 패킷의 경우에는 계속 꺼내온다
 			if (((PacketHeader*)(AddToRecvPendings->GetBuf()))->protocol == PacketProtocol::CLIENT_ONCE_PER_TICK) 
 				break;
 		}

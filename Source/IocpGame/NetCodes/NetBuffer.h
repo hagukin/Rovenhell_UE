@@ -69,13 +69,3 @@ public:
 	RecvBuffer(uint32 capacity) : NetBuffer(capacity) {};
 	~RecvBuffer() {};
 };
-
-// 힙 정렬을 위한 wrapper
-struct RecvPriorityQueueNode
-{
-	TSharedPtr<RecvBuffer> recvBuffer;
-	bool operator<(const RecvPriorityQueueNode& rhs) const
-	{
-		return ((PacketHeader*)recvBuffer->GetBuf())->tick < ((PacketHeader*)rhs.recvBuffer->GetBuf())->tick;
-	}
-};

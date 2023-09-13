@@ -18,6 +18,7 @@
 #include "GameFramework/Actor.h"
 #include "NetHandler.generated.h"
 
+
 UCLASS()
 class IOCPGAME_API ANetHandler : public AActor
 {
@@ -74,6 +75,5 @@ private:
 	uint32 lastAppliedTick = 0; // 마지막으로 처리된 틱 번호; 순서 보장이 필요한 틱을 처리할 때 사용함
 
 private:
-	/* UE_SERVER */
 	float AccumulatedTickTime = 0.0f; // ms
 };

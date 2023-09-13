@@ -11,8 +11,6 @@ struct PacketHeader
 	uint64 senderId; // 발신자와 연동된 세션의 세션 id
 	uint8 protocol; // 패킷 처리 방식
 	uint16 id; // 패킷 id
-	uint32 tick; // 게임 틱 - 클라이언트: 로컬 게임 틱(서버에게 패킷 수신 받을 때마다 true 틱으로 갱신); 서버: 게임 틱 count
-	float deltaTime; // 패킷 발송 시점에서의 델타타임
 };
 
 enum PacketId : uint16

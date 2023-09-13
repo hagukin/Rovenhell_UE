@@ -34,7 +34,7 @@ public:
 	void AdjustActorPhysics(float ServerDeltaTime, uint32 Tick, const FTransform& Transform, const FVector& Velocity); // 해당 틱에 해당 물리 정보를 갖도록 액터 정보 수정
 	
 private:
-	double GetDifference(TList<ActorPhysics>* Node, const FTransform& Transform, const FVector& Velocity); // Node 정보와 주어진 값의 오차를 구한다
+	bool IsValidPhysicsData(TList<ActorPhysics>* Node, const FTransform& Transform, const FVector& Velocity); // Node번 클라이언트 틱의 물리 정보가 주어진 물리 정보(서버로부터 수신한 정보)와 일치하는지 반환한다
 	void MoveHeadTo(uint32 Tick); // Tick번 노드로 헤더를 옮기고, 기존 헤더에서 Tick번 노드 사이에 있는 모든 원소는 해제한다 // TODO: 해제 대신 풀 제작
 private:
 	TList<ActorPhysics>* Head = nullptr;
@@ -42,7 +42,6 @@ private:
 
 	bool StartTicking = false;
 
-	const int32 MAX_TICK_DIFF_ALLOWED = 8; // 서버틱과의 허용 오차틱 (+-)
-	const double MAX_PHYSICS_DIFF_ALLOWED = 10.0; // 서버와의 물리 오차 허용 (cm)
+	const int32 MAX_TICK_DIFF_ALLOWED = 50; // 서버틱과의 허용 오차틱 (+-)
 	const uint32 MAX_HISTORY_SIZE = 100; // 기록할 수 있는 최대 틱 히스토리 범위; Head Tick과 Tail Tick의 차이는 이 값을 넘지 않는다
 };

@@ -8,7 +8,7 @@ UActorSyncComponent::UActorSyncComponent()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = true; // TODO: 나중에 런타임 전에 host 결정된다면 서버는 false로 설정
+	PrimaryComponentTick.bCanEverTick = true;
 }
 
 // Called when the game starts
@@ -75,8 +75,8 @@ uint32 UActorSyncComponent::IsActorInSyncWith(uint32 Tick, const FTransform& Tra
 			continue;
 		}
 
-		// 허용 오차 틱 범위 내 진입; 물리 값이 오차 범위 내인지 확인
-		if (FMath::Abs<double>(GetDifference(Current, Transform, Velocity)) < MAX_PHYSICS_DIFF_ALLOWED)
+		// 물리 정보가 서버와 일치하는지 판단
+		if (IsValidPhysicsData(Current, Transform, Velocity))
 		{
 			return Current->Element.Tick;
 		}
@@ -91,6 +91,13 @@ uint32 UActorSyncComponent::IsActorInSyncWith(uint32 Tick, const FTransform& Tra
 
 void UActorSyncComponent::AdjustActorPhysics(float ServerDeltaTime, uint32 Tick, const FTransform& Transform, const FVector& Velocity)
 {
+	//// TESTING
+	UE_LOG(LogTemp, Log, TEXT("테스트를 위해 Adjust 요청을 무시합니다"));
+	return;
+
+
+
+
 	FTransform newTransform = Transform;
 	int64 tickDiff = Cast<URovenhellGameInstance>(GetOwner()->GetGameInstance())->TickCounter->GetTick() - Cast<URovenhellGameInstance>(GetOwner()->GetGameInstance())->TickCounter->GetServerTick();
 	if (tickDiff < 0)
@@ -112,13 +119,14 @@ void UActorSyncComponent::AdjustActorPhysics(float ServerDeltaTime, uint32 Tick,
 	DrawDebugSphere(GetWorld(), newTransform.GetLocation(), 10, 26, FColor(255, 0, 0), false, 1.0f, 0, 1);
 }
 
-double UActorSyncComponent::GetDifference(TList<ActorPhysics>* Node, const FTransform& Transform, const FVector& Velocity)
+bool UActorSyncComponent::IsValidPhysicsData(TList<ActorPhysics>* Node, const FTransform& Transform, const FVector& Velocity)
 {
-	// CurrentTickNode, CurrentTickNode + 1틱 Node의 location을 이은 선분에서 얼마나 많이 벗어나 있는지에 비례한 값을 반환한다.
-	// 직선과 점의 거리를 구하는 것보다 더 빠른 휴리스틱을 사용한다 
-	// (A to C + B to C) - (A to B)
-	if (!Node->Next) return MAX_PHYSICS_DIFF_ALLOWED * 2;
-	return FVector::Dist(Node->Element.transform.GetLocation(), Transform.GetLocation()) + FVector::Dist(Node->Next->Element.transform.GetLocation(), Transform.GetLocation()) - FVector::Dist(Node->Element.transform.GetLocation(), Node->Next->Element.transform.GetLocation()); // Velocity 고려 X
+	// 서버에서의 이동 연산 결과는 결국 클라이언트 틱에서의 연산결과 중 하나와 매우 근접하다 
+	// (클라와 똑같은 정보를 처리하며 처리 rate만 다른 것이기 때문에)
+	// 따라서 클라이언트의 틱n, n+1 에서의 위치 사이에 서버 틱이 위치하면 정상으로 간주한다.
+	// 식: AB = AC + BC
+	if (!Node->Next) return false;
+	return FVector::Dist(Node->Element.transform.GetLocation(), Transform.GetLocation()) + FVector::Dist(Node->Next->Element.transform.GetLocation(), Transform.GetLocation()) == FVector::Dist(Node->Element.transform.GetLocation(), Node->Next->Element.transform.GetLocation()); // Velocity 고려 X
 }
 
 void UActorSyncComponent::MoveHeadTo(uint32 Tick)

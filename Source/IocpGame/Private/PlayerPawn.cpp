@@ -33,6 +33,9 @@ APlayerPawn::APlayerPawn()
 	// 무브먼트
 	MovementComp = CreateDefaultSubobject<UNetPlayerMovementComponent>(TEXT("MovementComp"));
 	MovementComp->UpdatedComponent = RootComponent; // 씬 컴포넌트 아니라 어태치하지 않아도 됨
+
+	// 인풋 펜딩 어레이 생성
+	GameInputPendings = MakeShared<TArray<SD_GameInput>>();
 }
 
 void APlayerPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -122,20 +125,12 @@ void APlayerPawn::Move_UEClient(const FInputActionValue& Value, float DeltaTime)
 {
 	Move(Value, DeltaTime);
 
-	// TESTING
-	TSharedPtr<SendBuffer> writeBuf;
-	while (!writeBuf) writeBuf = NetHandler->GetSessionShared()->BufManager->SendPool->PopBuffer();
-	NetHandler->GetSerializerShared()->Clear();
-	SD_GameInput* inputData = new SD_GameInput(ActionTypeEnum::MOVE, Value);
-	NetHandler->GetSerializerShared()->Serialize((SD_Data*)inputData);
-	NetHandler->GetSerializerShared()->WriteDataToBuffer(writeBuf);
-	NetHandler->FillPacketSenderTypeHeader(writeBuf);
-	((PacketHeader*)(writeBuf->GetBuf()))->senderId = NetHandler->GetSessionShared()->GetSessionId();
-	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_ALLOW_MULTIPLE_PER_TICK;
-	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_INPUT;
-	((PacketHeader*)(writeBuf->GetBuf()))->tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
-	((PacketHeader*)(writeBuf->GetBuf()))->deltaTime = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta();
-	NetHandler->GetSessionShared()->PushSendQueue(writeBuf);
+
+
+
+
+	//////////// TESTING
+	GameInputPendings->Add(SD_GameInput(ActionTypeEnum::MOVE, Value, DeltaTime));
 }
 
 void APlayerPawn::Move_UEServer(const FInputActionValue& Value, float DeltaTime)

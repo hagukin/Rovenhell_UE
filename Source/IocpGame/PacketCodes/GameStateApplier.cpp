@@ -44,22 +44,22 @@ bool GameStateApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<Ser
 
 bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer)
 {
-	uint32 tick = ((PacketHeader*)(packet->GetBuf()))->tick;
-	Cast<URovenhellGameInstance>(GameInstance)->TickCounter->SetServerTick_UEClient(tick); // 서버 틱과 동기화
-
 	deserializer->Clear();
 	SD_ActorPhysics* physicsData = new SD_ActorPhysics();
 	deserializer->ReadDataFromBuffer(packet);
 	deserializer->Deserialize((SD_Data*)physicsData);
 
+	Cast<URovenhellGameInstance>(GameInstance)->TickCounter->SetServerTick_UEClient(physicsData->tick); // 서버 틱과 동기화
+
 	/////////////// TESTING
 	for (TActorIterator<ANetSyncPawn> iter(GameInstance->GetWorld()); iter; ++iter)
 	{
 		FVector velocity(physicsData->xVelocity, physicsData->yVelocity, physicsData->zVelocity);
-		uint32 syncTick = (*iter)->GetSyncComp()->IsActorInSyncWith(tick, physicsData->Transform, velocity);
+		uint32 syncTick = (*iter)->GetSyncComp()->IsActorInSyncWith(physicsData->tick, physicsData->Transform, velocity);
 		if (!syncTick)
 		{
-			(*iter)->GetSyncComp()->AdjustActorPhysics(((PacketHeader*)(packet->GetBuf()))->deltaTime, tick, physicsData->Transform, velocity); // TODO: 부드러운 Transition?
+			// 과거의 포지션으로 강제이동시키기 때문에 끊김 현상 발생
+			(*iter)->GetSyncComp()->AdjustActorPhysics(physicsData->deltaTime, physicsData->tick, physicsData->Transform, velocity);
 		}
 		break;
 	}

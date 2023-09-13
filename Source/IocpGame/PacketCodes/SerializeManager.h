@@ -23,9 +23,10 @@ public:
 	bool Serialize(SD_Data* inData);
 	bool Deserialize(SD_Data* outData);
 
-	bool WriteDataToBuffer(TSharedPtr<SendBuffer> writeBuffer);
+	bool WriteDataToBuffer(TSharedPtr<SendBuffer> writeBuffer) const;
 	bool ReadDataFromBuffer(TSharedPtr<RecvBuffer> readBuffer);
 
 private:
+	
 	TUniquePtr<TArray<uint8>> Array;
 };
