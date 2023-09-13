@@ -3,8 +3,9 @@
 
 #include "SendHandler.h"
 
-SendHandler::SendHandler() : StopCounter(0)
+SendHandler::SendHandler(HostTypeEnum hostType) : StopCounter(0)
 {
+    HostType = hostType;
 }
 
 SendHandler::~SendHandler()
@@ -29,7 +30,11 @@ uint32 SendHandler::Run()
             }
             else
             {
-                //GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("버퍼 Send 성공")));
+                // Send 성공
+                if (HostType == HostTypeEnum::LOGIC_SERVER || HostType == HostTypeEnum::LOGIC_SERVER_HEADLESS)
+                {
+                    FPlatformProcess::YieldThread(); // 최적화 위해 더 호출이 잦은 타 스레드에게 양보
+                }
             }
             Session->BufManager->SendPool->PushBuffer(MoveTemp(SendPending));
             SendPending = nullptr;

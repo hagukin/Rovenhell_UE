@@ -3,8 +3,9 @@
 
 #include "RecvHandler.h"
 
-RecvHandler::RecvHandler()
+RecvHandler::RecvHandler(HostTypeEnum hostType)
 {
+    HostType = hostType;
 }
 
 RecvHandler::~RecvHandler()
@@ -25,7 +26,6 @@ uint32 RecvHandler::Run()
     {
         while (!recvBuffer)
         {
-            FPlatformProcess::Sleep(0.01f * pow(2.0f, count++)); // 대기 시간 증가
             recvBuffer = Session->BufManager->RecvPool->PopBuffer();
         }
         count = 0;
@@ -34,6 +34,14 @@ uint32 RecvHandler::Run()
             // 수신 못했을 경우 새로 재시도, 이때 버퍼에 일부 데이터가 채워졌을 가능성이 있기 때문에 버퍼 리셋
             recvBuffer->Reset();
             continue; 
+        }
+        else
+        {
+            // Recv 성공
+            if (HostType == HostTypeEnum::CLIENT || HostType == HostTypeEnum::CLIENT_HEADLESS)
+            {
+                FPlatformProcess::YieldThread(); // 최적화 위해 더 호출이 잦은 타 스레드에게 양보
+            }
         }
         Session->PushRecvQueue(MoveTemp(recvBuffer));
         recvBuffer = nullptr;

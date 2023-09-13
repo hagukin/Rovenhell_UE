@@ -62,7 +62,6 @@ bool InputApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, TSharedPt
 		// TODO: 세션 Id 값으로 어떤 플레이어인지 찾아내어야 한다
 		for (const SD_GameInput& input : inputData->GameInputs)
 		{
-			UE_LOG(LogTemp, Log, TEXT("%i , %f%f%f , %f"), input.ActionType, input.X, input.Y, input.Z, input.DeltaTime)
 			if (input.ActionType == (uint32)ActionTypeEnum::MOVE)
 			{
 				(*iter)->Move_UEServer(FInputActionValue(FVector(input.X, input.Y, input.Z)), input.DeltaTime);

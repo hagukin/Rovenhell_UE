@@ -306,6 +306,17 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 	}
 	Session->Receiver->Lock.Unlock();
 
+
+
+
+
+	///////TESTING
+	uint32 packetCount = 0;
+
+
+
+
+
 	//// 수신
 	// 같은 틱 값을 가진 패킷들을 묶어 처리한다
 	while (!RecvPendings.IsEmpty() || RecvPending)
@@ -317,6 +328,26 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 			{
 				UE_LOG(LogTemp, Error, TEXT("수신 완료한 패킷 내용을 적용하는 과정에서 문제가 발생했습니다, 해당 패킷 내용은 무시됩니다."));
 			}
+
+
+
+
+
+
+
+
+
+			///////// TESTING
+			packetCount++;
+
+
+
+
+
+
+
+
+
 			Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
 			RecvPending = nullptr;
 		}
@@ -366,4 +397,14 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 			}
 		}
 	}
+
+
+
+
+
+
+
+
+	//////////// TESTING
+	UE_LOG(LogTemp, Warning, TEXT("로직서버 틱당 패킷 %i개 처리, 초당 %f개 처리"), packetCount, packetCount / DeltaTime);
 }

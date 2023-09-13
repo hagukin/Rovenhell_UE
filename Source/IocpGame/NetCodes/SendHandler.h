@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
+#include "GenericPlatform/GenericPlatformProcess.h"
 #include "NetBuffer.h"
 #include "NetSession.h"
 
@@ -16,7 +17,7 @@ class NetSession;
 class IOCPGAME_API SendHandler : public FRunnable
 {
 public:
-	SendHandler();
+	SendHandler(HostTypeEnum hostType);
 	~SendHandler();
 
 	// 오버라이드 함수들, FRunnableThread에서 제어하므로 절대 임의로 직접 호출하지 말 것
@@ -38,4 +39,5 @@ private:
 	NetSession* Session = nullptr;
 	TSharedPtr<SendBuffer> SendPending = nullptr; // 현재 발송중인 버퍼
 	FRunnableThread* Thread = nullptr;
+	HostTypeEnum HostType = HostTypeEnum::NONE;
 };

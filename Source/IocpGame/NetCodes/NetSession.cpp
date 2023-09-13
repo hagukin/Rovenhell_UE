@@ -21,11 +21,11 @@ bool NetSession::Init(HostTypeEnum hostType)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("소켓 생성 성공")));
 
-		Sender = MakeUnique<SendHandler>();
+		Sender = MakeUnique<SendHandler>(HostType);
 		Sender->Init();
 		Sender->SetSession(this);
 
-		Receiver = MakeUnique<RecvHandler>();
+		Receiver = MakeUnique<RecvHandler>(HostType);
 		Receiver->Init();
 		Receiver->SetSession(this);
 		return true;

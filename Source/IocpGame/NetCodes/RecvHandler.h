@@ -15,7 +15,7 @@ class NetSession;
 class IOCPGAME_API RecvHandler : public FRunnable
 {
 public:
-	RecvHandler();
+	RecvHandler(HostTypeEnum hostType);
 	~RecvHandler();
 
 	// 오버라이드 함수들, FRunnableThread에서 제어하므로 절대 임의로 직접 호출하지 말 것
@@ -38,4 +38,5 @@ private:
 	/* UE SERVER */
 	NetSession* Session = nullptr;
 	FRunnableThread* Thread = nullptr;
+	HostTypeEnum HostType = HostTypeEnum::NONE;
 };
