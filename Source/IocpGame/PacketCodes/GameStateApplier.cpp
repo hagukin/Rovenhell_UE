@@ -51,15 +51,12 @@ bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, TShar
 
 	Cast<URovenhellGameInstance>(GameInstance)->TickCounter->SetServerTick_UEClient(physicsData->tick); // 서버 틱과 동기화
 
-	/////////////// TESTING
-	for (TActorIterator<ANetSyncPawn> iter(GameInstance->GetWorld()); iter; ++iter)
+	for (TActorIterator<ANetSyncPawn> iter(GameInstance->GetWorld()); iter; ++iter) // TODO: 플레이어 및 싱크 맞출 폰 여러개
 	{
 		FVector velocity(physicsData->xVelocity, physicsData->yVelocity, physicsData->zVelocity);
-		uint32 syncTick = (*iter)->GetSyncComp()->IsActorInSyncWith(physicsData->tick, physicsData->Transform, velocity);
-		if (!syncTick)
+		if (!(*iter)->GetSyncComp()->IsActorInSyncWith(physicsData->Transform, velocity))
 		{
-			// 과거의 포지션으로 강제이동시키기 때문에 끊김 현상 발생
-			(*iter)->GetSyncComp()->AdjustActorPhysics(physicsData->deltaTime, physicsData->tick, physicsData->Transform, velocity);
+			(*iter)->GetSyncComp()->AdjustActorPhysics(physicsData->deltaTime, physicsData->Transform, velocity);
 		}
 		break;
 	}

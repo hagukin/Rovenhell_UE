@@ -15,8 +15,16 @@ UActorSyncComponent::UActorSyncComponent()
 void UActorSyncComponent::BeginPlay()
 {
 	Super::BeginPlay();
+
 	HostTypeEnum hostType = Cast<URovenhellGameInstance>(GetWorld()->GetGameInstance())->GetExecType()->GetHostType();
-	if (hostType == HostTypeEnum::CLIENT || hostType == HostTypeEnum::CLIENT_HEADLESS) StartTicking = true;
+	if (hostType == HostTypeEnum::CLIENT || hostType == HostTypeEnum::CLIENT_HEADLESS)
+	{
+		StartTicking = true;
+		for (int i = 0; i < MAX_PHYSICS_HISTORY_SIZE; ++i)
+		{
+			PhysicsHistory[i] = { GetOwner()->GetTransform(), GetOwner()->GetRootComponent()->ComponentVelocity };
+		}
+	}
 }
 
 // Called every frame
@@ -26,124 +34,54 @@ void UActorSyncComponent::TickComponent(float DeltaTime, ELevelTick TickType, FA
 
 	if (StartTicking)
 	{
-		uint32 tick = Cast<URovenhellGameInstance>(GetWorld()->GetGameInstance())->TickCounter->GetTick();
-		FTransform currTransform = GetOwner()->GetTransform();
-		FVector currVelocity = GetOwner()->GetRootComponent()->ComponentVelocity; // TODO: 점검 필요
+		// 커서 이동
+		MoveOne();
 
-		ActorPhysics actorPhysics = { currTransform, currVelocity, tick };
-
-		if (!Tail)
-		{
-			Tail = new TList<ActorPhysics>(actorPhysics, nullptr);
-			actorPhysics.Tick = FMath::Max<uint32>(actorPhysics.Tick - 1, 0); // 가상의 헤더 틱이 0 아래로 내려가지 않도록
-			Head = new TList<ActorPhysics>(actorPhysics, Tail);
-		}
-		else if (Tail->Element.Tick >= tick)
-		{
-			// 최신 정보로 업데이트, 단 틱은 수정 X
-			Tail->Element.transform = currTransform;
-			Tail->Element.Velocity = currVelocity;
-		}
-		else
-		{
-			// 현재 틱까지 노드 제작해서 채운다
-			for (uint32 t = Tail->Element.Tick + 1; t <= tick; ++t)
-			{
-				actorPhysics.Tick = t;
-				Tail->Next = new TList<ActorPhysics>(actorPhysics, nullptr);
-				Tail = Tail->Next;
-			}
-		}
-
-		// 최대 개수 초과했을 경우 Head부터 순서대로 삭제한다
-		if (Tail->Element.Tick - Head->Element.Tick > MAX_HISTORY_SIZE)
-		{
-			MoveHeadTo(Tail->Element.Tick - MAX_HISTORY_SIZE);
-		}
+		ActorPhysics actorPhysics = { GetOwner()->GetTransform(), GetOwner()->GetRootComponent()->ComponentVelocity }; // TODO: Velocity 점검 필요
+		PhysicsHistory[Head] = actorPhysics; // 노드 생성
 	}
 }
 
-uint32 UActorSyncComponent::IsActorInSyncWith(uint32 Tick, const FTransform& Transform, const FVector& Velocity)
+bool UActorSyncComponent::IsActorInSyncWith(const FTransform& Transform, const FVector& Velocity)
 {
-	TList<ActorPhysics>* Current = Head;
-	if (!Current) return 0;
-	while (Current->Next && Current->Element.Tick <= Tick + MAX_TICK_DIFF_ALLOWED)
+	// 틱 히스토리 내부에 주어진 입력과 싱크가 맞는 기록이 있는지 확인한다
+	uint32 currentIndex = Head;
+	for (uint32 i = 0; i < (uint32)MAX_PHYSICS_HISTORY_SIZE - (uint32)IGNORE_RECENT_HISTORY_SIZE; ++i)
 	{
-		if (Current->Element.Tick < Tick - MAX_TICK_DIFF_ALLOWED)
+		// 물리 정보가 서버와 일치하는 틱이 있는지 판정
+		if(IsValidPhysicsData(currentIndex, Transform, Velocity))
 		{
-			Current = Current->Next;
-			continue;
+			return true;
 		}
-
-		// 물리 정보가 서버와 일치하는지 판단
-		if (IsValidPhysicsData(Current, Transform, Velocity))
-		{
-			return Current->Element.Tick;
-		}
-		else
-		{
-			Current = Current->Next;
-			continue;
-		}
+		currentIndex = (currentIndex + 1) % MAX_PHYSICS_HISTORY_SIZE;
 	}
-	return 0;
+	return false;
 }
 
-void UActorSyncComponent::AdjustActorPhysics(float ServerDeltaTime, uint32 Tick, const FTransform& Transform, const FVector& Velocity)
+void UActorSyncComponent::AdjustActorPhysics(float ServerDeltaTime, const FTransform& Transform, const FVector& Velocity)
 {
+	// 파라미터로 전달되는 서버 델타는 기존에 추측 항법 계산을 위해 사용했으나, 현재는 사용하지 않는다
+	// 다만 삭제는 아직 하지 않고 일단 보류한다
+
 	//// TESTING
-	UE_LOG(LogTemp, Log, TEXT("테스트를 위해 Adjust 요청을 무시합니다"));
-	return;
+	DrawDebugPoint(GetWorld(), GetOwner()->GetTransform().GetLocation(), 5, FColor(255, 0, 0), true, 5.0);
+	DrawDebugPoint(GetWorld(), Transform.GetLocation(), 5, FColor(0, 255, 0), true, 5.0);
 
-
-
-
-	FTransform newTransform = Transform;
-	int64 tickDiff = Cast<URovenhellGameInstance>(GetOwner()->GetGameInstance())->TickCounter->GetTick() - Cast<URovenhellGameInstance>(GetOwner()->GetGameInstance())->TickCounter->GetServerTick();
-	if (tickDiff < 0)
-	{
-		UE_LOG(LogTemp, Error, TEXT("클라이언트 틱이 서버로부터 수신받은 틱보다 뒤에 있습니다. Dead Reckoning을 사용할 수 없습니다!"));
-		GetOwner()->SetActorTransform(Transform);
-		GetOwner()->GetRootComponent()->GetComponentVelocity() = Velocity;
-		return;
-	}
-
-	// NOTE:
-	// 언리얼 물리 엔진을 이용한 Server reconciliation을 이벤트 틱 내에서 수행하기가 어려운 관계로 
-	// 속도가 동일하다는 가정 하에 Dead reckoning을 사용해 대략적인 위치를 추정해 현재 이 액터에 그 위치를 대입하는 방식을 사용한다.
-	newTransform.SetLocation(Transform.GetLocation() + (Velocity * ServerDeltaTime * tickDiff)); // 서버 델타 사용 이유: 서버측 이벤트 틱의 인풋 처리 결과와 싱크를 맞추기 위함
-
+	// 마지막으로 수신한 서버측 위치로 이동한다
 	GetOwner()->GetRootComponent()->ComponentVelocity = Velocity;
-	GetOwner()->SetActorTransform(newTransform);
-
-	DrawDebugSphere(GetWorld(), newTransform.GetLocation(), 10, 26, FColor(255, 0, 0), false, 1.0f, 0, 1);
+	GetOwner()->SetActorTransform(Transform, false, nullptr, ETeleportType::None);
+	UE_LOG(LogTemp, Log, TEXT("ActorSyncComponent - 위치 보정 완료"));
 }
 
-bool UActorSyncComponent::IsValidPhysicsData(TList<ActorPhysics>* Node, const FTransform& Transform, const FVector& Velocity)
+bool UActorSyncComponent::IsValidPhysicsData(uint32 index, const FTransform& Transform, const FVector& Velocity)
 {
 	// 서버에서의 이동 연산 결과는 결국 클라이언트 틱에서의 연산결과 중 하나와 매우 근접하다 
 	// (클라와 똑같은 정보를 처리하며 처리 rate만 다른 것이기 때문에)
 	// 따라서 클라이언트의 틱n, n+1 에서의 위치 사이에 서버 틱이 위치하면 정상으로 간주한다.
-	// 식: AB = AC + BC
-	if (!Node->Next) return false;
-	return FVector::Dist(Node->Element.transform.GetLocation(), Transform.GetLocation()) + FVector::Dist(Node->Next->Element.transform.GetLocation(), Transform.GetLocation()) == FVector::Dist(Node->Element.transform.GetLocation(), Node->Next->Element.transform.GetLocation()); // Velocity 고려 X
-}
 
-void UActorSyncComponent::MoveHeadTo(uint32 Tick)
-{
-	if (!Head || !(Head->Next))
-	{
-		UE_LOG(LogTemp, Error, TEXT("액터 히스토리를 조정하던 과정에서 예기치 못한 에러가 발생했습니다."));
-		Head = nullptr;
-		Tail = nullptr;
-		// Potential memory leak
-		return;
-	}
-	while (Head->Element.Tick < Tick)
-	{
-		TList<ActorPhysics>* temp = Head;
-		Head = Head->Next;
-		delete temp;
-	}
+	// 두 점 사이에 한 점이 있는지 판정
+	double AB = FVector::Dist(PhysicsHistory[index].transform.GetLocation(), Transform.GetLocation());
+	double BC = FVector::Dist(Transform.GetLocation(), PhysicsHistory[(index + 1) % MAX_PHYSICS_HISTORY_SIZE].transform.GetLocation());
+	double AC = FVector::Dist(PhysicsHistory[index].transform.GetLocation(), PhysicsHistory[(index + 1) % MAX_PHYSICS_HISTORY_SIZE].transform.GetLocation());
+	return (FMath::Abs(AB + BC - AC) <= ALLOWED_LOCATION_DIFFERENCE_WITH_SERVER); // Velocity 고려 X
 }
-

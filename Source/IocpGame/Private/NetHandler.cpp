@@ -177,26 +177,23 @@ void ANetHandler::Tick_UEClient(float DeltaTime)
 	{
 		AccumulatedTickTime = 0;
 
-		// 플레이어 한 명이라 for loop의 부하는 없다
-		for (TActorIterator<APlayerPawn> iter(GetWorld()); iter; ++iter)
-		{
-			TSharedPtr<SendBuffer> writeBuf;
-			while (!writeBuf) writeBuf = Session->BufManager->SendPool->PopBuffer();
-			FillPacketSenderTypeHeader(writeBuf);
+		APlayerPawn* Player = Cast<APlayerPawn>(UGameplayStatics::GetPlayerPawn(this, 0));
+		TSharedPtr<SendBuffer> writeBuf;
+		while (!writeBuf) writeBuf = Session->BufManager->SendPool->PopBuffer();
+		FillPacketSenderTypeHeader(writeBuf);
 
-			SD_GameInputHistory* inputHistory = new SD_GameInputHistory((*iter)->GetGameInputPendings());
+		SD_GameInputHistory* inputHistory = new SD_GameInputHistory(Player->GetGameInputPendings());
 
-			Serializer->Serialize((SD_Data*)inputHistory);
-			Serializer->WriteDataToBuffer(writeBuf);
-			Serializer->Clear();
+		Serializer->Serialize((SD_Data*)inputHistory);
+		Serializer->WriteDataToBuffer(writeBuf);
+		Serializer->Clear();
 
-			(*iter)->ClearGameInputPendings(); // 기존 인풋 히스토리를 전부 Flush한다
+		Player->ClearGameInputPendings(); // 기존 인풋 히스토리를 전부 Flush한다
 
-			((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();
-			((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_ALLOW_MULTIPLE_PER_TICK;
-			((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_INPUT;
-			Session->PushSendQueue(writeBuf);
-		}
+		((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();
+		((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_ALLOW_MULTIPLE_PER_TICK;
+		((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_INPUT;
+		Session->PushSendQueue(writeBuf);
 	}
 
 	//// 수신

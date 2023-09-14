@@ -22,7 +22,7 @@ void UNetPlayerMovementComponent::TickComponent(float DeltaTime, ELevelTick Tick
     for (const MoveInputData& DataPerInput : MoveDatas)
     {
         DesiredMovementThisFrame = DataPerInput.MoveVector.GetClampedToMaxSize(1.0f) * 300.0f * DataPerInput.DeltaTime; // 델타 타임 반영
-        PawnOwner->SetActorLocation(PawnOwner->GetActorLocation() + DesiredMovementThisFrame);
+        PawnOwner->SetActorLocation(PawnOwner->GetActorLocation() + DesiredMovementThisFrame, false, nullptr, ETeleportType::None);
     }
     EndTick();
 }
