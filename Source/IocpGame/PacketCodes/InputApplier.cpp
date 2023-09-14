@@ -56,7 +56,6 @@ bool InputApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, TSharedPt
 
 	// 모든 플레이어들의 인풋 처리
 	// TODO
-	//////////////// TESTING
 	for (TActorIterator<APlayerPawn> iter(GameInstance->GetWorld()); iter; ++iter)
 	{
 		// TODO: 세션 Id 값으로 어떤 플레이어인지 찾아내어야 한다

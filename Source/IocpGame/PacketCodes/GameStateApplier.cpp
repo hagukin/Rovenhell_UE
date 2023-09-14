@@ -49,14 +49,15 @@ bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, TShar
 	deserializer->ReadDataFromBuffer(packet);
 	deserializer->Deserialize((SD_Data*)physicsData);
 
-	Cast<URovenhellGameInstance>(GameInstance)->TickCounter->SetServerTick_UEClient(physicsData->tick); // 서버 틱과 동기화
+	Cast<URovenhellGameInstance>(GameInstance)->TickCounter->SetServerTick_UEClient(physicsData->Tick); // 서버 틱과 동기화
 
 	for (TActorIterator<ANetSyncPawn> iter(GameInstance->GetWorld()); iter; ++iter) // TODO: 플레이어 및 싱크 맞출 폰 여러개
 	{
-		FVector velocity(physicsData->xVelocity, physicsData->yVelocity, physicsData->zVelocity);
-		if (!(*iter)->GetSyncComp()->IsActorInSyncWith(physicsData->Transform, velocity))
+		FVector velocity(physicsData->XVelocity, physicsData->YVelocity, physicsData->ZVelocity);
+		FVector angularVelocity(physicsData->XAngularVelocity, physicsData->YAngularVelocity, physicsData->ZAngularVelocity);
+		if (!(*iter)->GetSyncComp()->IsActorInSyncWith(physicsData->Transform, velocity, angularVelocity))
 		{
-			(*iter)->GetSyncComp()->AdjustActorPhysics(physicsData->deltaTime, physicsData->Transform, velocity);
+			(*iter)->GetSyncComp()->AdjustActorPhysics(physicsData->DeltaTime, physicsData->Transform, velocity, angularVelocity);
 		}
 		break;
 	}

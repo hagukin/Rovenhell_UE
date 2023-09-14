@@ -271,12 +271,11 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 	{
 		AccumulatedTickTime = 0;
 
-		//////// TESTING
-		// 게임 스테이트를 보내는 게 맞지만 테스트를 위해 플레이어 트랜스폼 전송 후 싱크 테스트
+		//////// TESTING - 게임 스테이트를 보내는 게 맞지만 테스트를 위해 플레이어 트랜스폼 전송 후 싱크 테스트
 		TSharedPtr<SendBuffer> writeBuf;
 		while (!writeBuf) writeBuf = GetSessionShared()->BufManager->SendPool->PopBuffer();
 		GetSerializerShared()->Clear();
-		SD_ActorPhysics* physicsData = new SD_ActorPhysics(*UGameplayStatics::GetPlayerPawn(this, 0));
+		SD_ActorPhysics* physicsData = new SD_ActorPhysics(*UGameplayStatics::GetPlayerPawn(this, 0), Cast<URovenhellGameInstance, UGameInstance>(UGameplayStatics::GetGameInstance(GetWorld()))->TickCounter->GetTick(), DeltaTime); /////// TESTING TODO FIXME
 		GetSerializerShared()->Serialize((SD_Data*)physicsData);
 		GetSerializerShared()->WriteDataToBuffer(writeBuf);
 		FillPacketSenderTypeHeader(writeBuf);
@@ -303,16 +302,7 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 	}
 	Session->Receiver->Lock.Unlock();
 
-
-
-
-
-	///////TESTING
-	uint32 packetCount = 0;
-
-
-
-
+	//uint32 packetCount = 0; // Stress test
 
 	//// 수신
 	// 같은 틱 값을 가진 패킷들을 묶어 처리한다
@@ -326,24 +316,7 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 				UE_LOG(LogTemp, Error, TEXT("수신 완료한 패킷 내용을 적용하는 과정에서 문제가 발생했습니다, 해당 패킷 내용은 무시됩니다."));
 			}
 
-
-
-
-
-
-
-
-
-			///////// TESTING
-			packetCount++;
-
-
-
-
-
-
-
-
+			//packetCount++;  // Stress test
 
 			Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
 			RecvPending = nullptr;
@@ -395,13 +368,5 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 		}
 	}
 
-
-
-
-
-
-
-
-	//////////// TESTING
-	UE_LOG(LogTemp, Warning, TEXT("로직서버 틱당 패킷 %i개 처리, 초당 %f개 처리"), packetCount, packetCount / DeltaTime);
+	//UE_LOG(LogTemp, Warning, TEXT("로직서버 틱당 패킷 %i개 처리, 초당 %f개 처리"), packetCount, packetCount / DeltaTime); // Stress test
 }

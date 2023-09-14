@@ -14,6 +14,9 @@ ANetSyncPawn::ANetSyncPawn()
 
 	SyncComp = CreateDefaultSubobject<UActorSyncComponent>(TEXT("SyncComp"));
 	this->AddOwnedComponent(SyncComp);
+
+	// 레플리케이션 해제
+	bReplicates = false;
 }
 
 // Called when the game starts or when spawned
@@ -30,6 +33,12 @@ void ANetSyncPawn::BeginPlay()
 	else
 	{
 		NetHandler = Cast<ANetHandler>(temp);
+	}
+
+	// 레플리케이션 해제
+	if (AController* controller = GetController())
+	{
+		controller->SetReplicates(false);
 	}
 }
 

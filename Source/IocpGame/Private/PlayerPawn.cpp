@@ -124,12 +124,6 @@ void APlayerPawn::Move_Entry(const FInputActionValue& Value)
 void APlayerPawn::Move_UEClient(const FInputActionValue& Value, float DeltaTime)
 {
 	Move(Value, DeltaTime);
-
-
-
-
-
-	//////////// TESTING
 	GameInputPendings->Add(SD_GameInput(ActionTypeEnum::MOVE, Value, DeltaTime));
 }
 

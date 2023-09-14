@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InputActionValue.h"
+#include "Components/PrimitiveComponent.h"
 #include "../Enumerations.h"
 
 class SD_Data
@@ -40,27 +41,53 @@ class SD_ActorPhysics : SD_Data
 {
 public:
 	SD_ActorPhysics() {};
-	SD_ActorPhysics(const AActor& actor)
+	SD_ActorPhysics(uint32 tick, float deltaTime) { Tick = tick; DeltaTime = deltaTime; };
+	SD_ActorPhysics(const AActor& actor, uint32 tick, float deltaTime)
 	{
 		Transform = actor.GetTransform();
-		xVelocity = actor.GetVelocity().X;
-		yVelocity = actor.GetVelocity().Y;
-		zVelocity = actor.GetVelocity().Z;
+		XVelocity = actor.GetRootComponent()->ComponentVelocity.X;
+		YVelocity = actor.GetRootComponent()->ComponentVelocity.Y;
+		ZVelocity = actor.GetRootComponent()->ComponentVelocity.Z;
+
+		FVector AngularVelocity = Cast<UPrimitiveComponent>(actor.GetRootComponent())->GetPhysicsAngularVelocityInDegrees();
+		XAngularVelocity = AngularVelocity.X;
+		YAngularVelocity = AngularVelocity.Y;
+		ZAngularVelocity = AngularVelocity.Z;
+
+		/////////////////////// TODO FIXME
+		Tick = tick; 
+		DeltaTime = deltaTime;
 	}
-	SD_ActorPhysics(const FTransform& transform, const FVector& velocity)
+	SD_ActorPhysics(const FTransform& transform, const FVector& velocity, const FVector& angularVelocity, uint32 tick, float deltaTime)
 	{
 		Transform = transform;
-		xVelocity = velocity.X;
-		yVelocity = velocity.Y;
-		zVelocity = velocity.Z;
+		XVelocity = velocity.X;
+		YVelocity = velocity.Y;
+		ZVelocity = velocity.Z;
+
+		XAngularVelocity = angularVelocity.X;
+		YAngularVelocity = angularVelocity.Y;
+		ZAngularVelocity = angularVelocity.Z;
+
+		/////////////////////// TODO FIXME
+		Tick = tick;
+		DeltaTime = deltaTime;
 	}
 
 	friend FArchive& operator<<(FArchive& Archive, SD_ActorPhysics& Data)
 	{
 		Archive << Data.Transform;
-		Archive << Data.xVelocity;
-		Archive << Data.yVelocity;
-		Archive << Data.zVelocity;
+		Archive << Data.XVelocity;
+		Archive << Data.YVelocity;
+		Archive << Data.ZVelocity;
+
+		Archive << Data.XAngularVelocity;
+		Archive << Data.YAngularVelocity;
+		Archive << Data.ZAngularVelocity;
+
+		/////////////////////// TODO FIXME
+		Archive << Data.Tick;
+		Archive << Data.DeltaTime;
 		return Archive;
 	}
 
@@ -69,15 +96,18 @@ public:
 
 public:
 	FTransform Transform;
-	double xVelocity = 0.f;
-	double yVelocity = 0.f;
-	double zVelocity = 0.f;
+	double XVelocity = 0.f; // 대상 액터의 RootComponent의 ComponentVelocity 사용; LinearVelocity;
+	double YVelocity = 0.f;
+	double ZVelocity = 0.f;
 
+	double XAngularVelocity = 0.f;
+	double YAngularVelocity = 0.f;
+	double ZAngularVelocity = 0.f;
 
 	///////////// TESTING FIXME TODO
 	// 추후 서버에서 GameState를 발송하면 그 패킷 내부로 이동해야함
-	uint32 tick = 0;
-	float deltaTime = 0.0f; // 마찬가지
+	uint32 Tick = 0;
+	float DeltaTime = 0.0f; // 마찬가지
 };
 
 

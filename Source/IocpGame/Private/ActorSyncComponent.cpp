@@ -42,14 +42,14 @@ void UActorSyncComponent::TickComponent(float DeltaTime, ELevelTick TickType, FA
 	}
 }
 
-bool UActorSyncComponent::IsActorInSyncWith(const FTransform& Transform, const FVector& Velocity)
+bool UActorSyncComponent::IsActorInSyncWith(const FTransform& Transform, const FVector& Velocity, const FVector& AngularVelocity)
 {
 	// 틱 히스토리 내부에 주어진 입력과 싱크가 맞는 기록이 있는지 확인한다
 	uint32 currentIndex = Head;
-	for (uint32 i = 0; i < (uint32)MAX_PHYSICS_HISTORY_SIZE - (uint32)IGNORE_RECENT_HISTORY_SIZE; ++i)
+	for (uint32 i = 0; i < (uint32)MAX_PHYSICS_HISTORY_SIZE; ++i)
 	{
 		// 물리 정보가 서버와 일치하는 틱이 있는지 판정
-		if(IsValidPhysicsData(currentIndex, Transform, Velocity))
+		if(IsValidPhysicsData(currentIndex, Transform, Velocity, AngularVelocity))
 		{
 			return true;
 		}
@@ -58,22 +58,22 @@ bool UActorSyncComponent::IsActorInSyncWith(const FTransform& Transform, const F
 	return false;
 }
 
-void UActorSyncComponent::AdjustActorPhysics(float ServerDeltaTime, const FTransform& Transform, const FVector& Velocity)
+void UActorSyncComponent::AdjustActorPhysics(float ServerDeltaTime, const FTransform& Transform, const FVector& Velocity, const FVector& AngularVelocity)
 {
 	// 파라미터로 전달되는 서버 델타는 기존에 추측 항법 계산을 위해 사용했으나, 현재는 사용하지 않는다
 	// 다만 삭제는 아직 하지 않고 일단 보류한다
 
 	//// TESTING
-	DrawDebugPoint(GetWorld(), GetOwner()->GetTransform().GetLocation(), 5, FColor(255, 0, 0), true, 5.0);
-	DrawDebugPoint(GetWorld(), Transform.GetLocation(), 5, FColor(0, 255, 0), true, 5.0);
+	DrawDebugPoint(GetWorld(), GetOwner()->GetTransform().GetLocation(), 5, FColor(255, 0, 0), false, 5.0);
+	DrawDebugPoint(GetWorld(), Transform.GetLocation(), 5, FColor(0, 255, 0), false, 5.0);
 
 	// 마지막으로 수신한 서버측 위치로 이동한다
 	GetOwner()->GetRootComponent()->ComponentVelocity = Velocity;
+	Cast<UPrimitiveComponent>(GetOwner()->GetRootComponent())->SetPhysicsAngularVelocityInDegrees(AngularVelocity);
 	GetOwner()->SetActorTransform(Transform, false, nullptr, ETeleportType::None);
-	UE_LOG(LogTemp, Log, TEXT("ActorSyncComponent - 위치 보정 완료"));
 }
 
-bool UActorSyncComponent::IsValidPhysicsData(uint32 index, const FTransform& Transform, const FVector& Velocity)
+bool UActorSyncComponent::IsValidPhysicsData(uint32 index, const FTransform& Transform, const FVector& Velocity, const FVector& AngularVelocity)
 {
 	// 서버에서의 이동 연산 결과는 결국 클라이언트 틱에서의 연산결과 중 하나와 매우 근접하다 
 	// (클라와 똑같은 정보를 처리하며 처리 rate만 다른 것이기 때문에)
@@ -83,5 +83,5 @@ bool UActorSyncComponent::IsValidPhysicsData(uint32 index, const FTransform& Tra
 	double AB = FVector::Dist(PhysicsHistory[index].transform.GetLocation(), Transform.GetLocation());
 	double BC = FVector::Dist(Transform.GetLocation(), PhysicsHistory[(index + 1) % MAX_PHYSICS_HISTORY_SIZE].transform.GetLocation());
 	double AC = FVector::Dist(PhysicsHistory[index].transform.GetLocation(), PhysicsHistory[(index + 1) % MAX_PHYSICS_HISTORY_SIZE].transform.GetLocation());
-	return (FMath::Abs(AB + BC - AC) <= ALLOWED_LOCATION_DIFFERENCE_WITH_SERVER); // Velocity 고려 X
+	return (FMath::Abs(AB + BC - AC) <= ALLOWED_LOCATION_DIFFERENCE_WITH_SERVER); // 속도, 각속도 고려 X
 }
