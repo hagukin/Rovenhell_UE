@@ -8,7 +8,7 @@
 #include "GameTickCounter.h"
 #include "ActorSyncComponent.generated.h"
 
-#define MAX_PHYSICS_HISTORY_SIZE 240 // 기록할 수 있는 최대 틱 히스토리 범위; 서버와 이 틱 크기만큼 연산이 차이가 나게 되면 끊김이 지속적으로 발생한다
+#define MAX_PHYSICS_HISTORY_SIZE 60 // 기록할 수 있는 최대 틱 히스토리 범위; 서버와 이 틱 크기만큼 연산이 차이가 나게 되면 끊김이 지속적으로 발생한다
 // 이 길이를 지나치게 줄이면 위치 보정이 과도하게 잦아지고, 지나치게 늘리면 서버와 완전히 다른 위치임에도 올바른 위치에 있다고 판정할 확률이 높아진다
 
 struct ActorPhysics
@@ -43,12 +43,12 @@ private:
 	void MoveOne() { Head = (Head + 1) % MAX_PHYSICS_HISTORY_SIZE; Tail = (Tail + 1) % MAX_PHYSICS_HISTORY_SIZE; } // 헤드 및 테일을 1씩 이동시킨다
 
 private:
-	uint32 Head = 0;
-	uint32 Tail = 0;
+	uint32 Head = 0; // 가장 오래된 정보
+	uint32 Tail = 0; // Head + size; 가장 최근 정보
 	TStaticArray<ActorPhysics, MAX_PHYSICS_HISTORY_SIZE> PhysicsHistory; // Circular Array로 사용
 
 	bool StartTicking = false;
-	const double ALLOWED_LOCATION_DIFFERENCE_WITH_SERVER = 10; // 단위 cm; 
+	const double ALLOWED_LOCATION_DIFFERENCE_WITH_SERVER = 1.0; // 단위 cm; 
 	// NOTE: 
 	// 대체적으로 오차는 0이지만 slope나 추락과 같이 clock cycle이 높은 물리연산에 대해서 약간의 오차가 발생한다
 	// 원인은 이 서버에서 패킷을 모아서 처리하는 과정에서 누락되는 연산들이 있기 때문인 것으로 생각된다.

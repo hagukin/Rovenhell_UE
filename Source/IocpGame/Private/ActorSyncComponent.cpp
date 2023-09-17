@@ -38,7 +38,7 @@ void UActorSyncComponent::TickComponent(float DeltaTime, ELevelTick TickType, FA
 		MoveOne();
 
 		ActorPhysics actorPhysics = { GetOwner()->GetTransform(), GetOwner()->GetRootComponent()->ComponentVelocity }; // TODO: Velocity 점검 필요
-		PhysicsHistory[Head] = actorPhysics; // 노드 생성
+		PhysicsHistory[Tail] = actorPhysics; // 노드 생성
 	}
 }
 
@@ -64,13 +64,13 @@ void UActorSyncComponent::AdjustActorPhysics(float ServerDeltaTime, const FTrans
 	// 다만 삭제는 아직 하지 않고 일단 보류한다
 
 	//// TESTING
-	DrawDebugPoint(GetWorld(), GetOwner()->GetTransform().GetLocation(), 5, FColor(255, 0, 0), false, 5.0);
-	DrawDebugPoint(GetWorld(), Transform.GetLocation(), 5, FColor(0, 255, 0), false, 5.0);
+	DrawDebugPoint(GetWorld(), GetOwner()->GetTransform().GetLocation(), 5, FColor(255, 0, 0), true, 5.0);
+	DrawDebugPoint(GetWorld(), Transform.GetLocation(), 5, FColor(0, 255, 0), true, 5.0);
 
 	// 마지막으로 수신한 서버측 위치로 이동한다
+	GetOwner()->SetActorTransform(Transform, false, nullptr, ETeleportType::ResetPhysics);
 	GetOwner()->GetRootComponent()->ComponentVelocity = Velocity;
 	Cast<UPrimitiveComponent>(GetOwner()->GetRootComponent())->SetPhysicsAngularVelocityInDegrees(AngularVelocity);
-	GetOwner()->SetActorTransform(Transform, false, nullptr, ETeleportType::None);
 }
 
 bool UActorSyncComponent::IsValidPhysicsData(uint32 index, const FTransform& Transform, const FVector& Velocity, const FVector& AngularVelocity)
@@ -83,5 +83,12 @@ bool UActorSyncComponent::IsValidPhysicsData(uint32 index, const FTransform& Tra
 	double AB = FVector::Dist(PhysicsHistory[index].transform.GetLocation(), Transform.GetLocation());
 	double BC = FVector::Dist(Transform.GetLocation(), PhysicsHistory[(index + 1) % MAX_PHYSICS_HISTORY_SIZE].transform.GetLocation());
 	double AC = FVector::Dist(PhysicsHistory[index].transform.GetLocation(), PhysicsHistory[(index + 1) % MAX_PHYSICS_HISTORY_SIZE].transform.GetLocation());
+
+	//// TESTING
+	if ((FMath::Abs(AB + BC - AC) <= ALLOWED_LOCATION_DIFFERENCE_WITH_SERVER))
+		DrawDebugLine(GetWorld(), PhysicsHistory[index].transform.GetLocation(), PhysicsHistory[(index + 1) % MAX_PHYSICS_HISTORY_SIZE].transform.GetLocation(), FColor(255, 255, 255), true, -1.0, 0, 0.5);
+	else
+		DrawDebugLine(GetWorld(), PhysicsHistory[index].transform.GetLocation(), PhysicsHistory[(index + 1) % MAX_PHYSICS_HISTORY_SIZE].transform.GetLocation(), FColor(255, 255, 0), true, -1.0, 0, 0.7);
+
 	return (FMath::Abs(AB + BC - AC) <= ALLOWED_LOCATION_DIFFERENCE_WITH_SERVER); // 속도, 각속도 고려 X
 }
