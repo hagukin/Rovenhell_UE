@@ -23,7 +23,7 @@ public:
 		GameInstance = gameInstance;
 		return true; 
 	}
-	virtual bool ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> serializer) abstract;
+	virtual bool ApplyPacket(TSharedPtr<RecvBuffer> packet, class ANetHandler* netHandler) abstract;
 
 protected:
 	TSharedPtr<NetSession> Session = nullptr;

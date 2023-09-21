@@ -18,7 +18,7 @@ bool ChatPacketApplier::Init(TSharedPtr<NetSession> session, UGameInstance* game
     return true;
 }
 
-bool ChatPacketApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer)
+bool ChatPacketApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, class ANetHandler* netHandler)
 {
     // TODO
     return true;

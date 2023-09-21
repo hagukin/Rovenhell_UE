@@ -106,6 +106,24 @@ void ANetHandler::Init()
 	if (Session->Start()) { UE_LOG(LogTemp, Log, TEXT("세션이 정상적으로 작동중입니다.")); }
 }
 
+void ANetHandler::UpdateLastProcessedInputTickForSession(uint64 sessionId, uint32 tick)
+{
+	if (!LastProcessedInputTick.Contains(sessionId))
+	{
+		LastProcessedInputTick.Add(sessionId, 0); // 없을 경우 새 항목 추가
+	}
+	LastProcessedInputTick[sessionId] = tick;
+}
+
+uint32 ANetHandler::GetLastProcessedInputTickForSession(uint64 sessionId)
+{
+	if (!LastProcessedInputTick.Contains(sessionId))
+	{
+		LastProcessedInputTick.Add(sessionId, 0); // 새 항목 추가
+	}
+	return LastProcessedInputTick[sessionId];
+}
+
 void ANetHandler::FillPacketSenderTypeHeader(TSharedPtr<SendBuffer> buffer)
 {
 	((PacketHeader*)(buffer->GetBuf()))->senderType = HostType;
@@ -122,32 +140,33 @@ bool ANetHandler::DistributePendingPacket()
 {
 	// RecvPending 버퍼를 적절한 Applier로 전달한다
 	const PacketHeader header = *((PacketHeader*)(RecvPending->GetBuf()));
+
 	bool applied = false;
 	switch (header.id)
 	{
 	case PacketId::GAME_INPUT:
 		{
-			applied = InApplier->ApplyPacket(RecvPending, Deserializer);
+			applied = InApplier->ApplyPacket(RecvPending, this);
 			break;
 		}
 	case PacketId::CHAT_GLOBAL:
 		{
-			applied = ChatApplier->ApplyPacket(RecvPending, Deserializer);
+			applied = ChatApplier->ApplyPacket(RecvPending, this);
 			break;
 		}
 	case PacketId::ACTOR_PHYSICS:
 		{
-			applied = PhysApplier->ApplyPacket(RecvPending, Deserializer);
+			applied = PhysApplier->ApplyPacket(RecvPending, this);
 			break;
 		}
 	case PacketId::GAME_STATE:
 		{
-			applied = GameApplier->ApplyPacket(RecvPending, Deserializer);
+			applied = GameApplier->ApplyPacket(RecvPending, this);
 			break;
 		}
 	case PacketId::SESSION_INFO:
 		{
-			applied = MiddleApplier->ApplyPacket(RecvPending, Deserializer);
+			applied = MiddleApplier->ApplyPacket(RecvPending, this);
 			break;
 		}
 	default:
@@ -265,26 +284,6 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 {
 	StartingNewGameTick_UEServer();
 
-	AccumulatedTickTime += DeltaTime;
-	// 인터벌마다 서버 정보를 Broadcast한다
-	if (AccumulatedTickTime >= DESIRED_SERVER_BROADCAST_TIME)
-	{
-		AccumulatedTickTime = 0;
-
-		//////// TESTING - 게임 스테이트를 보내는 게 맞지만 테스트를 위해 플레이어 트랜스폼 전송 후 싱크 테스트
-		TSharedPtr<SendBuffer> writeBuf;
-		while (!writeBuf) writeBuf = GetSessionShared()->BufManager->SendPool->PopBuffer();
-		GetSerializerShared()->Clear();
-		SD_ActorPhysics* physicsData = new SD_ActorPhysics(*UGameplayStatics::GetPlayerPawn(this, 0), Cast<URovenhellGameInstance, UGameInstance>(UGameplayStatics::GetGameInstance(GetWorld()))->TickCounter->GetTick(), DeltaTime); /////// TESTING TODO FIXME
-		GetSerializerShared()->Serialize((SD_Data*)physicsData);
-		GetSerializerShared()->WriteDataToBuffer(writeBuf);
-		FillPacketSenderTypeHeader(writeBuf);
-		((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();
-		((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::LOGIC_EVENT;
-		((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_STATE;
-		GetSessionShared()->PushSendQueue(writeBuf);
-	}
-
 	// 이번 틱에 처리할 패킷들을 세션별로 하나 이상씩 가져온다
 	while (!Session->Receiver->Lock.TryLock());
 	for (auto& pair : Session->Receiver->PendingClientBuffers)
@@ -369,4 +368,31 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 	}
 
 	//UE_LOG(LogTemp, Warning, TEXT("로직서버 틱당 패킷 %i개 처리, 초당 %f개 처리"), packetCount, packetCount / DeltaTime); // Stress test
+
+	//// 송신
+	AccumulatedTickTime += DeltaTime;
+	// 인터벌마다 서버 정보를 Broadcast한다
+	if (AccumulatedTickTime >= DESIRED_SERVER_BROADCAST_TIME)
+	{
+		AccumulatedTickTime = 0;
+
+		//////// TESTING - 게임 스테이트를 보내는 게 맞지만 테스트를 위해 플레이어 트랜스폼 전송 후 싱크 테스트
+		TSharedPtr<SendBuffer> writeBuf;
+		while (!writeBuf) writeBuf = GetSessionShared()->BufManager->SendPool->PopBuffer();
+		GetSerializerShared()->Clear();
+
+
+		SD_ActorPhysics* physicsData = new SD_ActorPhysics(*UGameplayStatics::GetPlayerPawn(this, 0), Cast<URovenhellGameInstance, UGameInstance>(UGameplayStatics::GetGameInstance(GetWorld()))->TickCounter->GetTick(), DeltaTime, GetLastProcessedInputTickForSession(1/*TODO FIXME 플레이어 1명*/));
+		/////// TESTING TODO FIXME : 현재는 플레이어 한 명이라 세션id 1 사용중; 
+		// 여러 플레이어가 되면 이렇게 단일 대상에 대한 정보를 전달하는게 아니라 모든 플레이어들의 LastInputTick을 묶어 broadcast하거나,
+		// 더 좋은건 플레이어 개별로 본인 정보만 받도록 해야함
+		
+		GetSerializerShared()->Serialize((SD_Data*)physicsData);
+		GetSerializerShared()->WriteDataToBuffer(writeBuf);
+		FillPacketSenderTypeHeader(writeBuf);
+		((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();
+		((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::LOGIC_EVENT;
+		((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_STATE;
+		GetSessionShared()->PushSendQueue(writeBuf);
+	}
 }

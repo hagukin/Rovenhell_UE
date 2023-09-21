@@ -19,7 +19,7 @@ bool PhysicsApplier::Init(TSharedPtr<NetSession> session, UGameInstance* gameIns
 	return true;
 }
 
-bool PhysicsApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer)
+bool PhysicsApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, class ANetHandler* netHandler)
 {
 	URovenhellGameInstance* gameInstance = Cast<URovenhellGameInstance>(GameInstance);
 	if (!gameInstance) return false;
@@ -30,25 +30,25 @@ bool PhysicsApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<Seria
 		case HostTypeEnum::CLIENT:
 		case HostTypeEnum::CLIENT_HEADLESS:
 			{
-				applied &= ApplyPacket_UEClient(packet, deserializer);
+				applied &= ApplyPacket_UEClient(packet, netHandler);
 				break;
 			}
 		case HostTypeEnum::LOGIC_SERVER:
 		case HostTypeEnum::LOGIC_SERVER_HEADLESS:
 			{
-				applied &= ApplyPacket_UEServer(packet, deserializer);
+				applied &= ApplyPacket_UEServer(packet, netHandler);
 				break;
 			}
 	}
 	return applied;
 }
 
-bool PhysicsApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer)
+bool PhysicsApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, class ANetHandler* netHandler)
 {
 	return true;
 }
 
-bool PhysicsApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer)
+bool PhysicsApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, class ANetHandler* netHandler)
 {
 	
 

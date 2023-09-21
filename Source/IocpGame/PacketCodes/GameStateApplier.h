@@ -16,7 +16,7 @@ public:
 	virtual ~GameStateApplier();
 
 	bool Init(TSharedPtr<NetSession> session, UGameInstance* gameInstance);
-	bool ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> serializer) override;
-	bool ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer);
-	bool ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer);
+	bool ApplyPacket(TSharedPtr<RecvBuffer> packet, class ANetHandler* netHandler) override;
+	bool ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, class ANetHandler* netHandler);
+	bool ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, class ANetHandler* netHandler);
 };

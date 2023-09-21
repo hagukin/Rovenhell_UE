@@ -5,6 +5,10 @@
 
 APlayerPawn::APlayerPawn()
 {
+	// 인풋 싱크 컴포넌트
+	InputSyncComp = CreateDefaultSubobject<UActorInputSyncComponent>(TEXT("InputSyncComp"));
+	this->AddOwnedComponent(InputSyncComp);
+
 	// 3인칭 카메라 - 마우스 회전은 캐릭터를 회전시키지 않는다
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
@@ -85,10 +89,8 @@ void APlayerPawn::Move(const FInputActionValue& Value, float DeltaTime)
 	// 전면 방향 계산
 	const FRotator rotation = controller->GetControlRotation();
 	const FRotator yawRotation(0, rotation.Yaw, 0);
-
 	const FVector forwardDirection = FRotationMatrix(yawRotation).GetUnitAxis(EAxis::X);
 	const FVector rightDirection = FRotationMatrix(yawRotation).GetUnitAxis(EAxis::Y);
-
 	MovementComp->AddMovementData((forwardDirection * MovementVector.Y) + (rightDirection * MovementVector.X), DeltaTime);
 }
 
@@ -124,7 +126,9 @@ void APlayerPawn::Move_Entry(const FInputActionValue& Value)
 void APlayerPawn::Move_UEClient(const FInputActionValue& Value, float DeltaTime)
 {
 	Move(Value, DeltaTime);
-	GameInputPendings->Add(SD_GameInput(ActionTypeEnum::MOVE, Value, DeltaTime));
+	uint32 tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetLocalTick(); // 주의: 반드시 로컬 틱을 보내기 및 히스토리에 저장해야함
+	GameInputPendings->Add(SD_GameInput(ActionTypeEnum::MOVE, Value, DeltaTime, tick));
+	GetInputSyncComp()->AddInputsInfoAndMoveOne(ActionTypeEnum::MOVE, Value, DeltaTime, tick);
 }
 
 void APlayerPawn::Move_UEServer(const FInputActionValue& Value, float DeltaTime)

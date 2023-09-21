@@ -12,6 +12,7 @@
 #include "Components/CapsuleComponent.h"
 #include "../Enumerations.h"
 #include "NetPlayerMovementComponent.h"
+#include "ActorInputSyncComponent.h"
 #include "PlayerPawn.generated.h"
 
 /**
@@ -29,9 +30,10 @@ public:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	// Getter
+	UActorInputSyncComponent* GetInputSyncComp() const { return InputSyncComp; }
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
-	FORCEINLINE virtual UPawnMovementComponent* GetMovementComponent() const override { return MovementComp; };
+	FORCEINLINE virtual UPawnMovementComponent* GetMovementComponent() const { return MovementComp; };
 
 	// 액션
 	void Move(const FInputActionValue& Value, float DeltaTime);
@@ -49,6 +51,9 @@ protected:
 
 public:
 	//// 컴포넌트
+	// 싱크 컴포넌트
+	UActorInputSyncComponent* InputSyncComp;
+
 	// 콜리전, 피직스, Root
 	UPROPERTY(EditAnywhere)
 	UCapsuleComponent* CapsuleComp;

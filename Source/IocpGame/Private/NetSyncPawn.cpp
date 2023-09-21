@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "NetSyncPawn.h"
+#include "NetHandler.h"
 
 // Sets default values
 ANetSyncPawn::ANetSyncPawn()
@@ -12,8 +12,8 @@ ANetSyncPawn::ANetSyncPawn()
 	SceneComp = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComp"));
 	SetRootComponent(SceneComp);
 
-	SyncComp = CreateDefaultSubobject<UActorSyncComponent>(TEXT("SyncComp"));
-	this->AddOwnedComponent(SyncComp);
+	PhysicsSyncComp = CreateDefaultSubobject<UActorPhysicsSyncComponent>(TEXT("PhysicsSyncComp"));
+	this->AddOwnedComponent(PhysicsSyncComp);
 
 	// 레플리케이션 해제
 	bReplicates = false;

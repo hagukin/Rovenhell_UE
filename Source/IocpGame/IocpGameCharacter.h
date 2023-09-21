@@ -8,7 +8,7 @@
 #include "NetHandler.h"
 #include "NetCodes/NetBuffer.h"
 #include "NetSyncPawn.h"
-#include "ActorSyncComponent.h"
+#include "ActorPhysicsSyncComponent.h"
 #include "IocpGameCharacter.generated.h"
 
 

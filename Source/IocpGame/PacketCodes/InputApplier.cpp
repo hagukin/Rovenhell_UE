@@ -18,7 +18,7 @@ bool InputApplier::Init(TSharedPtr<NetSession> session, UGameInstance* gameInsta
 	return true;
 }
 
-bool InputApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer)
+bool InputApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, class ANetHandler* netHandler)
 {
 	URovenhellGameInstance* gameInstance = Cast<URovenhellGameInstance>(GameInstance);
 	if (!gameInstance) return false;
@@ -29,33 +29,32 @@ bool InputApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, TSharedPtr<Seriali
 	case HostTypeEnum::CLIENT:
 	case HostTypeEnum::CLIENT_HEADLESS:
 	{
-		applied &= ApplyPacket_UEClient(packet, deserializer);
+		applied &= ApplyPacket_UEClient(packet, netHandler);
 		break;
 	}
 	case HostTypeEnum::LOGIC_SERVER:
 	case HostTypeEnum::LOGIC_SERVER_HEADLESS:
 	{
-		applied &= ApplyPacket_UEServer(packet, deserializer);
+		applied &= ApplyPacket_UEServer(packet, netHandler);
 		break;
 	}
 	}
 	return applied;
 }
 
-bool InputApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer)
+bool InputApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, class ANetHandler* netHandler)
 {
 	return false; // 클라이언트는 Input 패킷을 처리하지 않음
 }
 
-bool InputApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, TSharedPtr<SerializeManager> deserializer)
+bool InputApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, class ANetHandler* netHandler)
 {
-	deserializer->Clear();
+	netHandler->GetDeserializerShared()->Clear();
 	SD_GameInputHistory* inputData = new SD_GameInputHistory();
-	deserializer->ReadDataFromBuffer(packet);
-	deserializer->Deserialize((SD_Data*)inputData);
+	netHandler->GetDeserializerShared()->ReadDataFromBuffer(packet);
+	netHandler->GetDeserializerShared()->Deserialize((SD_Data*)inputData);
 
 	// 모든 플레이어들의 인풋 처리
-	// TODO
 	for (TActorIterator<APlayerPawn> iter(GameInstance->GetWorld()); iter; ++iter)
 	{
 		// TODO: 세션 Id 값으로 어떤 플레이어인지 찾아내어야 한다
@@ -64,6 +63,11 @@ bool InputApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, TSharedPt
 			if (input.ActionType == (uint32)ActionTypeEnum::MOVE)
 			{
 				(*iter)->Move_UEServer(FInputActionValue(FVector(input.X, input.Y, input.Z)), input.DeltaTime);
+
+				uint64 sessionId = 1; ////////// TODO FIXME: 현재는 플레이어 한 명이라 무조건 1 전달, 수정 필요
+
+				// 더 나중 틱으로 업데이트
+				netHandler->UpdateLastProcessedInputTickForSession(sessionId, FMath::Max<uint32>(netHandler->GetLastProcessedInputTickForSession(sessionId), input.Tick));
 			}
 		}
 	}

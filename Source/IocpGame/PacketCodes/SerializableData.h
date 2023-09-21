@@ -41,8 +41,8 @@ class SD_ActorPhysics : SD_Data
 {
 public:
 	SD_ActorPhysics() {};
-	SD_ActorPhysics(uint32 tick, float deltaTime) { Tick = tick; DeltaTime = deltaTime; };
-	SD_ActorPhysics(const AActor& actor, uint32 tick, float deltaTime)
+	SD_ActorPhysics(uint32 tick, float deltaTime, uint32 processedTick) { Tick = tick; DeltaTime = deltaTime; ProcessedTick = processedTick; }
+	SD_ActorPhysics(const AActor& actor, uint32 tick, float deltaTime, uint32 processedTick)
 	{
 		Transform = actor.GetTransform();
 		XVelocity = actor.GetRootComponent()->ComponentVelocity.X;
@@ -57,8 +57,9 @@ public:
 		/////////////////////// TODO FIXME
 		Tick = tick; 
 		DeltaTime = deltaTime;
+		ProcessedTick = processedTick;
 	}
-	SD_ActorPhysics(const FTransform& transform, const FVector& velocity, const FVector& angularVelocity, uint32 tick, float deltaTime)
+	SD_ActorPhysics(const FTransform& transform, const FVector& velocity, const FVector& angularVelocity, uint32 tick, float deltaTime, uint32 processedTick)
 	{
 		Transform = transform;
 		XVelocity = velocity.X;
@@ -72,6 +73,7 @@ public:
 		/////////////////////// TODO FIXME
 		Tick = tick;
 		DeltaTime = deltaTime;
+		ProcessedTick = processedTick;
 	}
 
 	friend FArchive& operator<<(FArchive& Archive, SD_ActorPhysics& Data)
@@ -88,6 +90,7 @@ public:
 		/////////////////////// TODO FIXME
 		Archive << Data.Tick;
 		Archive << Data.DeltaTime;
+		Archive << Data.ProcessedTick;
 		return Archive;
 	}
 
@@ -106,8 +109,9 @@ public:
 
 	///////////// TESTING FIXME TODO
 	// 추후 서버에서 GameState를 발송하면 그 패킷 내부로 이동해야함
-	uint32 Tick = 0;
-	float DeltaTime = 0.0f; // 마찬가지
+	uint32 Tick = 0; // 서버 틱 (Real tick)
+	float DeltaTime = 0.0f;
+	uint32 ProcessedTick = 0; // 클라가 발송한 인풋들 중 몇틱까지 처리를 완료했는지; 이때 틱 기준은 발송한 클라이언트의 로컬 틱이 기준이다 TODO: 클라별로 분류해서 보내야함
 };
 
 
@@ -116,10 +120,11 @@ class SD_GameInput : SD_Data
 {
 public:
 	SD_GameInput() {}
-	SD_GameInput(ActionTypeEnum actionType, const FInputActionValue& inputValue, float deltaTime)
+	SD_GameInput(ActionTypeEnum actionType, const FInputActionValue& inputValue, float deltaTime, uint32 tick)
 	{
 		ActionType = actionType;
 		DeltaTime = deltaTime;
+		Tick = tick;
 		switch (inputValue.GetValueType())
 		{
 			case EInputActionValueType::Axis1D:
@@ -159,6 +164,7 @@ public:
 		Archive << Data.Y;
 		Archive << Data.Z;
 		Archive << Data.DeltaTime;
+		Archive << Data.Tick;
 		return Archive;
 	}
 
@@ -172,10 +178,12 @@ public:
 	double Y = 0.0f;
 	double Z = 0.0f;
 	float DeltaTime = 0.0f; // 서버측 재연산을 위해 필요한 값
+	uint32 Tick = 0; // 이 인풋이 발생한 시점; 인풋을 발생시킨 호스트의 로컬 틱값으로 표현한다.
 };
 
 
 // 단위시간 동안 처리된 모든 플레이어 "게임플레이" 인풋을 저장하기 위해 사용할 수 있다
+// TODO: 현재는 플레이어 한 명이기 때문에 GameInputHistory도 하나만 발송한다
 class SD_GameInputHistory : SD_Data
 {
 public:

@@ -25,11 +25,6 @@ void UNetPlayerMovementComponent::TickComponent(float DeltaTime, ELevelTick Tick
 
         DesiredMovementThisFrame = DataPerInput.MoveVector.GetClampedToMaxSize(1.0f) * 300.0f * DataPerInput.DeltaTime; // 델타 타임 반영
         PawnOwner->SetActorLocation(PawnOwner->GetActorLocation() + DesiredMovementThisFrame, false, nullptr, ETeleportType::ResetPhysics);
-
-        //uint32 tick = Cast<URovenhellGameInstance, UGameInstance>(GetWorld()->GetGameInstance())->TickCounter->GetTick();
-        //UE_LOG(LogTemp, Warning, TEXT("처리한 틱: %i 이동거리: %f, %f, %f, 델타: %f"), tick, DataPerInput.MoveVector.X, DataPerInput.MoveVector.Y, DataPerInput.MoveVector.Z, DataPerInput.DeltaTime);
-        //UE_LOG(LogTemp, Warning, TEXT("이동후: %f, %f, %f"), PawnOwner->GetActorLocation().X, PawnOwner->GetActorLocation().Y, PawnOwner->GetActorLocation().Z);
-
     }
 
     EndTick();
