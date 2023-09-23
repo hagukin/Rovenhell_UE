@@ -79,8 +79,6 @@ void ANetHandler::Init()
 	InApplier->Init(GetSessionShared(), GetGameInstance());
 	ChatApplier = MakeUnique<ChatPacketApplier>();
 	ChatApplier->Init(GetSessionShared(), GetGameInstance());
-	PhysApplier = MakeUnique<PhysicsApplier>();
-	PhysApplier->Init(GetSessionShared(), GetGameInstance());
 	GameApplier = MakeUnique<GameStateApplier>();
 	GameApplier->Init(GetSessionShared(), GetGameInstance());
 	MiddleApplier = MakeUnique<MiddlemanPacketApplier>();
@@ -152,11 +150,6 @@ bool ANetHandler::DistributePendingPacket()
 	case PacketId::CHAT_GLOBAL:
 		{
 			applied = ChatApplier->ApplyPacket(RecvPending, this);
-			break;
-		}
-	case PacketId::ACTOR_PHYSICS:
-		{
-			applied = PhysApplier->ApplyPacket(RecvPending, this);
 			break;
 		}
 	case PacketId::GAME_STATE:

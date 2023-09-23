@@ -25,10 +25,10 @@ void UActorPhysicsSyncComponent::BeginPlay()
 
 void UActorPhysicsSyncComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
 	if (StartTicking)
 	{
+		Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
 		// 커서 이동
 		MoveOnePhysicsHistoryCursor();
 		AddCurrentPhysicsInfo();
@@ -65,7 +65,7 @@ void UActorPhysicsSyncComponent::AdjustActorPhysics(float ServerDeltaTime, const
 	DrawDebugPoint(GetWorld(), Transform.GetLocation(), 5, FColor(0, 255, 0), true, 5.0);*/
 
 	// 마지막으로 수신한 서버측 위치로 이동한다
-	GetOwner()->SetActorTransform(Transform, false, nullptr, ETeleportType::ResetPhysics);
+	GetOwner()->SetActorTransform(Transform, false, nullptr, ETeleportType::None);
 	GetOwner()->GetRootComponent()->ComponentVelocity = Velocity;
 	Cast<UPrimitiveComponent>(GetOwner()->GetRootComponent())->SetPhysicsAngularVelocityInDegrees(AngularVelocity);
 }

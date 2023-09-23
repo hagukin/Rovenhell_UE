@@ -3,6 +3,7 @@
 
 #include "NetPlayerMovementComponent.h"
 #include "PlayerPawn.h"
+#include "GameUtilities.h"
 
 void UNetPlayerMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
@@ -10,21 +11,18 @@ void UNetPlayerMovementComponent::TickComponent(float DeltaTime, ELevelTick Tick
 
     BeginTick();
 
-    if (!PawnOwner || !UpdatedComponent || ShouldSkipUpdate(DeltaTime))
-    {
-        return;
-    }
+    APlayerPawn* Player = Cast<APlayerPawn>(PawnOwner);
+    if (!Player || !UpdatedComponent) return;
 
-    // 이동 처리
+    // 인풋 처리
     // 서버의 경우 단일 폰에 대해 1틱에 여러 인풋을 처리할 수 있는데,
     // 각 인풋별로 발송받은 델타 타임을 적용해 연산한다.
     FVector DesiredMovementThisFrame(0, 0, 0);
     for (const MoveInputData& DataPerInput : MoveDatas)
     {
-        //UE_LOG(LogTemp, Warning, TEXT("이동전: %f, %f, %f"), PawnOwner->GetActorLocation().X, PawnOwner->GetActorLocation().Y, PawnOwner->GetActorLocation().Z);
-
+        // 이동 처리
         DesiredMovementThisFrame = DataPerInput.MoveVector.GetClampedToMaxSize(1.0f) * 300.0f * DataPerInput.DeltaTime; // 델타 타임 반영
-        PawnOwner->SetActorLocation(PawnOwner->GetActorLocation() + DesiredMovementThisFrame, false, nullptr, ETeleportType::ResetPhysics);
+        Player->SetActorLocation(Player->GetActorLocation() + DesiredMovementThisFrame, false, nullptr, ETeleportType::None);
     }
 
     EndTick();

@@ -23,9 +23,6 @@ enum PacketId : uint16
 	// 채팅 패킷
 	CHAT_GLOBAL,
 
-	// 액터의 물리적 상태 변화
-	ACTOR_PHYSICS,
-
 	//// 로직 서버
 	GAME_STATE,
 

@@ -40,7 +40,6 @@ public:
 	void Move_Entry(const FInputActionValue& Value); // 키 입력에 대한 처리
 	void Move_UEClient(const FInputActionValue& Value, float DeltaTime);
 	void Move_UEServer(const FInputActionValue& Value, float DeltaTime);
-	void Look(const FInputActionValue& Value);
 
 	TSharedPtr<TArray<SD_GameInput>> GetGameInputPendings() { return GameInputPendings; }
 	void ClearGameInputPendings() { GameInputPendings->Empty(); }

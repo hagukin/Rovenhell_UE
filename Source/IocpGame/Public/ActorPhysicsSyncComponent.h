@@ -41,6 +41,7 @@ protected:
 	uint32 PhysTail = MAX_PHYSICS_HISTORY_SIZE - 1; // 가장 뒷번 인덱스로 초기화; 가장 최근 정보
 	TStaticArray<ActorPhysics, MAX_PHYSICS_HISTORY_SIZE> PhysicsHistory; // Circular Array로 사용
 
+private:
 	bool StartTicking = false;
 	const double ALLOWED_LOCATION_DIFFERENCE_WITH_SERVER = 3.0; // 단위 cm; 서버 보정이 지나치게 빈번하게 일어난다면 허용 오차 크기를 늘리는 것을 고려하자.
 };

@@ -3,7 +3,6 @@
 
 #include "GameStateApplier.h"
 #include "PlayerPawn.h"
-#include "../IocpGameCharacter.h"
 
 GameStateApplier::GameStateApplier()
 {

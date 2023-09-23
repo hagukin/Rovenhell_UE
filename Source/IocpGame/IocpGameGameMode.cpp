@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IocpGameGameMode.h"
-#include "IocpGameCharacter.h"
 #include "UObject/ConstructorHelpers.h"
 
 AIocpGameGameMode::AIocpGameGameMode()

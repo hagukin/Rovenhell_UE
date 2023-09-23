@@ -48,9 +48,6 @@ void APlayerPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	{
 		// 이동
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &APlayerPawn::Move_Entry);
-
-		// 시야 회전
-		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APlayerPawn::Look);
 	}
 }
 
@@ -135,14 +132,4 @@ void APlayerPawn::Move_UEServer(const FInputActionValue& Value, float DeltaTime)
 {
 	Move(Value, DeltaTime);
 	return;
-}
-
-void APlayerPawn::Look(const FInputActionValue& Value)
-{
-	FVector2D LookAxisVector = Value.Get<FVector2D>();
-	if (Controller != nullptr)
-	{
-		AddControllerYawInput(LookAxisVector.X); // TODO: 서버클라 구현
-		AddControllerPitchInput(LookAxisVector.Y);
-	}
 }

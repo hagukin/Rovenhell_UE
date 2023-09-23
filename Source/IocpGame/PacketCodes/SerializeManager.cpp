@@ -38,8 +38,7 @@ bool SerializeManager::Deserialize(SD_Data* outData)
 
 bool SerializeManager::WriteDataToBuffer(TSharedPtr<SendBuffer> writeBuffer) const
 {
-	writeBuffer->Write(Array->GetData(), (SIZE_T)Array->Num());
-	return true;
+	return writeBuffer->Write(Array->GetData(), (SIZE_T)Array->Num());
 }
 
 bool SerializeManager::ReadDataFromBuffer(TSharedPtr<RecvBuffer> readBuffer)

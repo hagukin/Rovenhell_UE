@@ -10,7 +10,6 @@
 #include "../PacketCodes/PacketHeader.h"
 #include "../PacketCodes/InputApplier.h"
 #include "../PacketCodes/ChatPacketApplier.h"
-#include "../PacketCodes/PhysicsApplier.h"
 #include "../PacketCodes/GameStateApplier.h"
 #include "../PacketCodes/MiddlemanPacketApplier.h"
 #include "../PacketCodes/SerializeManager.h"
@@ -66,7 +65,6 @@ private:
 
 	TUniquePtr<InputApplier> InApplier = nullptr;
 	TUniquePtr<ChatPacketApplier> ChatApplier = nullptr;
-	TUniquePtr<PhysicsApplier> PhysApplier = nullptr;
 	TUniquePtr<GameStateApplier> GameApplier = nullptr;
 	TUniquePtr<MiddlemanPacketApplier> MiddleApplier = nullptr;
 

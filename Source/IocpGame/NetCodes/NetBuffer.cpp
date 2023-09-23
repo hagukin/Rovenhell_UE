@@ -77,7 +77,12 @@ bool NetBuffer::Write(T_BYTE* data, uint32 size)
 {
 	if (BufferSize + size > CAPACITY)
 	{
-		UE_LOG(LogTemp, Fatal, TEXT("버퍼 할당 크기를 초과해 Write 할 수 없습니다!"));
+		/////////////// TESTING
+		for (int i = 0; i < (int)size; ++i)
+		{
+			UE_LOG(LogTemp, Error, TEXT("버퍼 %i번 문자: %i"), i, data[i]);
+		}
+		UE_LOG(LogTemp, Error, TEXT("버퍼 크기를 초과해 Write할 수 없습니다!"));
 		return false;
 	}
 	memcpy(GetWriteCursor(), data, size);
