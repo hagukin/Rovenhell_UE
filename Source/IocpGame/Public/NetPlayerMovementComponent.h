@@ -41,4 +41,9 @@ private:
 	// 이 경우 어레이의 크기를 이용해 이번 틱에 처리되야 하는 총 Move 인풋의 개수를 구하기 때문에
 	// TickComponent가 처리되는 동안에는 개수를 늘이거나 줄여서는 안된다
 	TArray<MoveInputData> MoveDatas;
+
+	// 회전
+	FVector DesiredDirection;
+	float TurnLeftYaw = -500.0f;
+	float TurnRightYaw = 500.0f;
 };

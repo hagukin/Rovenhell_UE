@@ -20,9 +20,48 @@ void UNetPlayerMovementComponent::TickComponent(float DeltaTime, ELevelTick Tick
     FVector DesiredMovementThisFrame(0, 0, 0);
     for (const MoveInputData& DataPerInput : MoveDatas)
     {
-        // 이동 처리
-        DesiredMovementThisFrame = DataPerInput.MoveVector.GetClampedToMaxSize(1.0f) * 300.0f * DataPerInput.DeltaTime; // 델타 타임 반영
+        FVector CurrentDirection = Player->GetRootComponent()->GetComponentTransform().GetRotation().Vector();
+
+        // 현재 바라보고 있는 방향으로 이동 처리
+        DesiredMovementThisFrame = CurrentDirection.GetClampedToMaxSize(1.0f) * 300.0f * DataPerInput.DeltaTime; // 델타 타임 반영
         Player->SetActorLocation(Player->GetActorLocation() + DesiredMovementThisFrame, false, nullptr, ETeleportType::None);
+
+        // 회전 처리
+        DesiredDirection = DataPerInput.MoveVector;
+
+        float rotateDirection = GameUtilities::IsVectorCCW2D(CurrentDirection, DesiredDirection);
+        if (rotateDirection > 0) // 언리얼의 xy 평면은 x가 세로방향이기 때문에 주의 필요
+        {
+            Player->AddActorLocalRotation(FRotator(0, TurnRightYaw * DataPerInput.DeltaTime, 0));
+            // 지나갔을 경우 Desired로 세팅
+            if (GameUtilities::IsVectorCCW2D(Player->GetRootComponent()->GetComponentTransform().GetRotation().Vector(), DesiredDirection) < 0)
+            {
+                Player->SetActorRotation(DesiredDirection.Rotation());
+            }
+        }
+        else if (rotateDirection == 0)
+        {
+            CurrentDirection.Normalize();
+            DesiredDirection.Normalize();
+            if (!CurrentDirection.Equals(DesiredDirection))
+            {
+                // 반대 방향일 경우 좌우 지향 방향에 따라 회전방향 결정
+                // 좌우 입력이 0일 경우 좌회전
+                if (DesiredDirection.Y > 0)
+                    Player->AddActorLocalRotation(FRotator(0, TurnRightYaw * DataPerInput.DeltaTime, 0));
+                else
+                    Player->AddActorLocalRotation(FRotator(0, TurnLeftYaw * DataPerInput.DeltaTime, 0));
+            }
+        }
+        else
+        {
+            Player->AddActorLocalRotation(FRotator(0, TurnLeftYaw * DataPerInput.DeltaTime, 0));
+            // 지나갔을 경우 Desired로 세팅
+            if (GameUtilities::IsVectorCCW2D(Player->GetRootComponent()->GetComponentTransform().GetRotation().Vector(), DesiredDirection) > 0)
+            {
+                Player->SetActorRotation(DesiredDirection.Rotation());
+            }
+        }
     }
 
     EndTick();
