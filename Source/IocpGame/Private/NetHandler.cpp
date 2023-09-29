@@ -297,7 +297,6 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 	//uint32 packetCount = 0; // Stress test
 
 	//// 수신
-	// 같은 틱 값을 가진 패킷들을 묶어 처리한다
 	while (!RecvPendings.IsEmpty() || RecvPending)
 	{
 		if (RecvPending)

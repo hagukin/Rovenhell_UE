@@ -88,7 +88,7 @@ void APlayerPawn::Move(const FInputActionValue& Value, float DeltaTime)
 	const FRotator yawRotation(0, rotation.Yaw, 0);
 	const FVector forwardDirection = FRotationMatrix(yawRotation).GetUnitAxis(EAxis::X);
 	const FVector rightDirection = FRotationMatrix(yawRotation).GetUnitAxis(EAxis::Y);
-	MovementComp->AddMovementData((forwardDirection * MovementVector.Y) + (rightDirection * MovementVector.X), DeltaTime);
+	MovementComp->AddMovementData((forwardDirection * MovementVector.Y) + (rightDirection * MovementVector.X), DeltaTime); // 처리 큐에 추가
 }
 
 void APlayerPawn::Move_Entry(const FInputActionValue& Value)
@@ -132,4 +132,24 @@ void APlayerPawn::Move_UEServer(const FInputActionValue& Value, float DeltaTime)
 {
 	Move(Value, DeltaTime);
 	return;
+}
+
+void APlayerPawn::SetAllAnimStateToFalse()
+{
+	bIsIdling = false; 
+	bIsMoving = false;
+}
+
+void APlayerPawn::SetIsIdlingTo(bool value)
+{
+	if (bIsIdling == value) return;
+	SetAllAnimStateToFalse(); // TODO FIXME
+	bIsIdling = value;
+}
+
+void APlayerPawn::SetIsMovingTo(bool value)
+{
+	if (bIsMoving == value) return;
+	SetAllAnimStateToFalse(); // TODO FIXME
+	bIsMoving = value;
 }

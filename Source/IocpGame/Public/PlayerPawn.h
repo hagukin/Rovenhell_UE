@@ -44,6 +44,16 @@ public:
 	TSharedPtr<TArray<SD_GameInput>> GetGameInputPendings() { return GameInputPendings; }
 	void ClearGameInputPendings() { GameInputPendings->Empty(); }
 
+	// 애니메이션
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	void SetAllAnimStateToFalse();
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	void SetIsIdlingTo(bool value);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	void SetIsMovingTo(bool value);
+
 protected:
 	virtual void BeginPlay();
 	virtual void Tick(float DeltaTime) override;
@@ -86,6 +96,13 @@ public:
 	UInputAction* LookAction = nullptr; // BP
 
 private:
+	//// 애니메이션
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Animation, meta = (AllowPrivateAccess = "true"))
+	bool bIsMoving = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Animation, meta = (AllowPrivateAccess = "true"))
+	bool bIsIdling = true;
+
 	/* UEClient */
 	TSharedPtr<TArray<SD_GameInput>> GameInputPendings; // 서버로 발송 대기중인 클라이언트이 게임플레이 인풋들
 };
