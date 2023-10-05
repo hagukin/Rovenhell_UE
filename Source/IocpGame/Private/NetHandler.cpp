@@ -108,7 +108,7 @@ void ANetHandler::UpdateLastProcessedInputTickForSession(uint64 sessionId, uint3
 {
 	if (!LastProcessedInputTick.Contains(sessionId))
 	{
-		LastProcessedInputTick.Add(sessionId, 0); // 없을 경우 새 항목 추가
+		LastProcessedInputTick.Add(sessionId, tick); // 없을 경우 새 항목 추가
 	}
 	LastProcessedInputTick[sessionId] = tick;
 }
@@ -117,6 +117,7 @@ uint32 ANetHandler::GetLastProcessedInputTickForSession(uint64 sessionId)
 {
 	if (!LastProcessedInputTick.Contains(sessionId))
 	{
+		UE_LOG(LogTemp, Error, TEXT("%i번 세션의 LastProcessedInputTick 정보를 찾을 수 없습니다, 기본값으로 새로 추가합니다."), sessionId);
 		LastProcessedInputTick.Add(sessionId, 0); // 새 항목 추가
 	}
 	return LastProcessedInputTick[sessionId];
@@ -158,13 +159,17 @@ bool ANetHandler::DistributePendingPacket()
 			break;
 		}
 	case PacketId::SESSION_INFO:
+	case PacketId::SESSION_CONNECTED:
+	case PacketId::SESSION_DISCONNECTED:
 		{
 			applied = MiddleApplier->ApplyPacket(RecvPending, this);
 			break;
 		}
 	default:
-		UE_LOG(LogTemp, Warning, TEXT("패킷 id %i는 Applier에 의해 처리되지 않았습니다."), header.id);
-		break;
+		{
+			UE_LOG(LogTemp, Warning, TEXT("패킷 id %i는 Applier에 의해 처리되지 않았습니다."), header.id);
+			break;
+		}
 	}
 	return applied;
 }
@@ -367,19 +372,26 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 	if (AccumulatedTickTime >= DESIRED_SERVER_BROADCAST_TIME)
 	{
 		AccumulatedTickTime = 0;
-
-		//////// TESTING - 게임 스테이트를 보내는 게 맞지만 테스트를 위해 플레이어 트랜스폼 전송 후 싱크 테스트
 		TSharedPtr<SendBuffer> writeBuf;
 		while (!writeBuf) writeBuf = GetSessionShared()->BufManager->SendPool->PopBuffer();
 		GetSerializerShared()->Clear();
 
-
-		SD_ActorPhysics* physicsData = new SD_ActorPhysics(*UGameplayStatics::GetPlayerPawn(this, 0), Cast<URovenhellGameInstance, UGameInstance>(UGameplayStatics::GetGameInstance(GetWorld()))->TickCounter->GetTick(), DeltaTime, GetLastProcessedInputTickForSession(1/*TODO FIXME 플레이어 1명*/));
-		/////// TESTING TODO FIXME : 현재는 플레이어 한 명이라 세션id 1 사용중; 
-		// 여러 플레이어가 되면 이렇게 단일 대상에 대한 정보를 전달하는게 아니라 모든 플레이어들의 LastInputTick을 묶어 broadcast하거나,
-		// 더 좋은건 플레이어 개별로 본인 정보만 받도록 해야함
+		SD_GameState* gameStateData = new SD_GameState(
+			GetWorld()->GetGameState(), 
+			GetRovenhellGameInstance()->TickCounter->GetTick(),
+			DeltaTime, 
+			GetLastProcessedInputTicks()
+		);
 		
-		GetSerializerShared()->Serialize((SD_Data*)physicsData);
+		// 모든 플레이어들에 대해서 물리 정보를 갱신한다.
+		// TODO: 변경된 플레이어에 대해서만 정보를 보내는 것으로 패킷 크기 축소 가능
+		for (const auto& element : GetRovenhellGameInstance()->GetPlayers())
+		{
+			SD_PlayerPhysics* playerPhysicsData = new SD_PlayerPhysics(element.Key, element.Value.Get()->GetPawn());
+			gameStateData->AddPlayerPhysics(playerPhysicsData);
+		}
+		
+		GetSerializerShared()->Serialize((SD_Data*)gameStateData);
 		GetSerializerShared()->WriteDataToBuffer(writeBuf);
 		FillPacketSenderTypeHeader(writeBuf);
 		((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();

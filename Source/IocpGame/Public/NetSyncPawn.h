@@ -29,6 +29,8 @@ public:
 	UActorPhysicsSyncComponent* GetPhysicsSyncComp() const { return PhysicsSyncComp; }
 	FORCEINLINE class ANetHandler* GetNetHandler() const { return NetHandler; }
 	void SetNetHandler(class ANetHandler* handler) { NetHandler = handler; }
+	bool SetOwnerSessionId(uint64 id);
+	uint64 GetOwnerSessionId(uint64 id);
 
 public:
 	//// 컴포넌트
@@ -41,4 +43,8 @@ public:
 
 protected:
 	ANetHandler* NetHandler = nullptr;
+
+private:
+	bool SessionIdInitialized = false;
+	uint64 OwnerSessionId = 0;
 };

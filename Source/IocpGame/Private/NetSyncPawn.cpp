@@ -56,3 +56,22 @@ void ANetSyncPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 
 }
 
+bool ANetSyncPawn::SetOwnerSessionId(uint64 id)
+{
+	if (SessionIdInitialized)
+	{
+		return false;
+	}
+	OwnerSessionId = id;
+	SessionIdInitialized = true;
+	return true;
+}
+
+uint64 ANetSyncPawn::GetOwnerSessionId(uint64 id)
+{
+	if (!SessionIdInitialized)
+	{
+		UE_LOG(LogTemp, Error, TEXT("이 플레이어에게 세션 id가 할당되어 있지 않습니다. 기본값을 반환합니다."));
+	}
+	return OwnerSessionId;
+}

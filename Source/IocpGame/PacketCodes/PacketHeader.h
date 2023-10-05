@@ -27,8 +27,11 @@ enum PacketId : uint16
 	GAME_STATE,
 
 	//// 미들맨
-	// 미들맨에서 생성한 이 호스트 세션의 정보
+	// 미들맨에서 로컬 호스트 세션의 ID를 발급받기 위해 사용
 	SESSION_INFO,
+	// 미들맨에 새로운 클라이언트 세션 연결/연결 해제 시 로직서버에게 알림
+	SESSION_CONNECTED,
+	SESSION_DISCONNECTED,
 };
 
 enum PacketProtocol : uint8
@@ -41,7 +44,7 @@ enum PacketProtocol : uint8
 	// 해당 프로토콜을 가진 패킷은 단일 틱 당 여러 개 처리가 가능하다.
 	CLIENT_ALLOW_MULTIPLE_PER_TICK,
 
-	// 로직 서버 패킷
+	// 로직 서버가 처리해야 하는 패킷
 	// 처리가 보장되며 순서는 큰 의미가 없다
 	LOGIC_EVENT,
 

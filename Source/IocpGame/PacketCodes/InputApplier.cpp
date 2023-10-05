@@ -53,22 +53,29 @@ bool InputApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, class ANe
 	SD_GameInputHistory* inputData = new SD_GameInputHistory();
 	netHandler->GetDeserializerShared()->ReadDataFromBuffer(packet);
 	netHandler->GetDeserializerShared()->Deserialize((SD_Data*)inputData);
+	uint64 sessionId = ((PacketHeader*)packet->GetBuf())->senderId;
 
 	// 모든 플레이어들의 인풋 처리
-	for (TActorIterator<APlayerPawn> iter(GameInstance->GetWorld()); iter; ++iter)
+	for (const SD_GameInput& input : inputData->GameInputs)
 	{
-		// TODO: 세션 Id 값으로 어떤 플레이어인지 찾아내어야 한다
-		for (const SD_GameInput& input : inputData->GameInputs)
+		if (input.ActionType == (uint32)ActionTypeEnum::MOVE)
 		{
-			if (input.ActionType == (uint32)ActionTypeEnum::MOVE)
-			{
-				(*iter)->Move_UEServer(FInputActionValue(FVector(input.X, input.Y, input.Z)), input.DeltaTime);
-
-				uint64 sessionId = 1; ////////// TODO FIXME: 현재는 플레이어 한 명이라 무조건 1 전달, 수정 필요
-
-				// 더 나중 틱으로 업데이트
-				netHandler->UpdateLastProcessedInputTickForSession(sessionId, FMath::Max<uint32>(netHandler->GetLastProcessedInputTickForSession(sessionId), input.Tick));
+			APlayerController* controller = netHandler->GetRovenhellGameInstance()->GetPlayerControllerOfOwner(sessionId);
+			if (!controller)
+			{ 
+				UE_LOG(LogTemp, Error, TEXT("세션 아이디 %i가 등록되어있지 않아 인풋을 처리할 수 없습니다."), sessionId);
+				return false;
 			}
+			APlayerPawn* playerPawn = Cast<APlayerPawn>(controller->GetPawn());
+			if (!playerPawn)
+			{
+				UE_LOG(LogTemp, Error, TEXT("인풋 처리의 대상을 플레이어 폰으로 캐스팅 할 수 없습니다."), sessionId);
+				return false;
+			}
+			playerPawn->Move_UEServer(FInputActionValue(FVector(input.X, input.Y, input.Z)), input.DeltaTime);
+
+			// 더 나중 틱으로 업데이트
+			netHandler->UpdateLastProcessedInputTickForSession(sessionId, FMath::Max<uint32>(netHandler->GetLastProcessedInputTickForSession(sessionId), input.Tick));
 		}
 	}
 	return true;

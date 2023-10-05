@@ -44,6 +44,9 @@ public:
 	uint32 GetLastProcessedInputTickForSession(uint64 sessionId);
 	HostTypeEnum GetHostType() { return HostType; }
 	void FillPacketSenderTypeHeader(TSharedPtr<SendBuffer> buffer);
+	AIocpGameState* GetIocpGameState() { return Cast<AIocpGameState>(GetWorld()->GetGameState()); }
+	URovenhellGameInstance* GetRovenhellGameInstance() { return Cast<URovenhellGameInstance>(GetGameInstance()); }
+	const TMap<uint64, uint32>& GetLastProcessedInputTicks() { return LastProcessedInputTick; }
 
 private:
 	void Init();
@@ -51,8 +54,10 @@ private:
 	void PacketDebug(float DeltaTime);
 	bool DistributePendingPacket(); // RecvPending 패킷을 적절한 Applier에게 전달하고, 처리가 완료되면 버퍼 풀에 버퍼를 반환한다
 	
+	/*UEClient*/
 	void Tick_UEClient(float DeltaTime);
 
+	/*UEServer*/
 	void StartingNewGameTick_UEServer();
 	void Tick_UEServer(float DeltaTime);
 private:

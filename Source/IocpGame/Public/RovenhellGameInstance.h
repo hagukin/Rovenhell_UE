@@ -27,9 +27,17 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetHostTypeAs(uint8 hostType) { GameExecType->SetHostType((HostTypeEnum)hostType); }
 
+	//// 현재 접속한 세션들의 플레이어 컨트롤러 관리
+	bool AddPlayerController(uint64 sessionId, APlayerController* pawn);
+	bool RemovePlayerController(uint64 sessionId);
+	APlayerController* GetPlayerControllerOfOwner(uint64 sessionId); // 반환값은 다음 사이클(혹은 그 이후)에 GC에 의해 삭제될 수 있기 때문에 함수를 호출한 해당 사이클에서만 반환값의 유효성이 보장됨. 따라서 반환 값을 다른 곳에 캐싱하는 것은 권장되지 않음.
+	const TMap<uint64, TWeakObjectPtr<APlayerController>>& GetPlayers() { return Players; }
+
 public:
 	TUniquePtr<GameTickCounter> TickCounter = nullptr;
+	mutable FCriticalSection PlayersInfoLock;
 
 private:
 	TSharedPtr<ExecType> GameExecType = nullptr;
+	TMap<uint64, TWeakObjectPtr<APlayerController>> Players; // 외부에서의 해제 시 처리를 위해 TWeakObjectPtr 사용 TODO: 테스트 필요
 };

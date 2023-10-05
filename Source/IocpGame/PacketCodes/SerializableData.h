@@ -41,25 +41,19 @@ class SD_ActorPhysics : SD_Data
 {
 public:
 	SD_ActorPhysics() {};
-	SD_ActorPhysics(uint32 tick, float deltaTime, uint32 processedTick) { Tick = tick; DeltaTime = deltaTime; ProcessedTick = processedTick; }
-	SD_ActorPhysics(const AActor& actor, uint32 tick, float deltaTime, uint32 processedTick)
+	SD_ActorPhysics(AActor* actor)
 	{
-		Transform = actor.GetTransform();
-		XVelocity = actor.GetRootComponent()->ComponentVelocity.X;
-		YVelocity = actor.GetRootComponent()->ComponentVelocity.Y;
-		ZVelocity = actor.GetRootComponent()->ComponentVelocity.Z;
+		Transform = actor->GetTransform();
+		XVelocity = actor->GetRootComponent()->ComponentVelocity.X;
+		YVelocity = actor->GetRootComponent()->ComponentVelocity.Y;
+		ZVelocity = actor->GetRootComponent()->ComponentVelocity.Z;
 
-		FVector AngularVelocity = Cast<UPrimitiveComponent>(actor.GetRootComponent())->GetPhysicsAngularVelocityInDegrees();
+		FVector AngularVelocity = Cast<UPrimitiveComponent>(actor->GetRootComponent())->GetPhysicsAngularVelocityInDegrees();
 		XAngularVelocity = AngularVelocity.X;
 		YAngularVelocity = AngularVelocity.Y;
 		ZAngularVelocity = AngularVelocity.Z;
-
-		/////////////////////// TODO FIXME
-		Tick = tick; 
-		DeltaTime = deltaTime;
-		ProcessedTick = processedTick;
 	}
-	SD_ActorPhysics(const FTransform& transform, const FVector& velocity, const FVector& angularVelocity, uint32 tick, float deltaTime, uint32 processedTick)
+	SD_ActorPhysics(const FTransform& transform, const FVector& velocity, const FVector& angularVelocity)
 	{
 		Transform = transform;
 		XVelocity = velocity.X;
@@ -69,11 +63,6 @@ public:
 		XAngularVelocity = angularVelocity.X;
 		YAngularVelocity = angularVelocity.Y;
 		ZAngularVelocity = angularVelocity.Z;
-
-		/////////////////////// TODO FIXME
-		Tick = tick;
-		DeltaTime = deltaTime;
-		ProcessedTick = processedTick;
 	}
 
 	friend FArchive& operator<<(FArchive& Archive, SD_ActorPhysics& Data)
@@ -87,10 +76,6 @@ public:
 		Archive << Data.YAngularVelocity;
 		Archive << Data.ZAngularVelocity;
 
-		/////////////////////// TODO FIXME
-		Archive << Data.Tick;
-		Archive << Data.DeltaTime;
-		Archive << Data.ProcessedTick;
 		return Archive;
 	}
 
@@ -106,14 +91,7 @@ public:
 	double XAngularVelocity = 0.f;
 	double YAngularVelocity = 0.f;
 	double ZAngularVelocity = 0.f;
-
-	///////////// TESTING FIXME TODO
-	// 추후 서버에서 GameState를 발송하면 그 패킷 내부로 이동해야함
-	uint32 Tick = 0; // 서버 틱 (Real tick)
-	float DeltaTime = 0.0f;
-	uint32 ProcessedTick = 0; // 클라가 발송한 인풋들 중 몇틱까지 처리를 완료했는지; 이때 틱 기준은 발송한 클라이언트의 로컬 틱이 기준이다 TODO: 클라별로 분류해서 보내야함
 };
-
 
 // InputAction과 InputActionValue에 대한 정보를 담는다
 class SD_GameInput : SD_Data
@@ -223,4 +201,169 @@ public:
 	SD_GameInput Temp;
 
 	TArray<SD_GameInput> GameInputs;
+};
+
+
+// 단일 플레이어의 물리 정보를 나타낸다
+class SD_PlayerPhysics : public SD_ActorPhysics
+{
+public:
+	SD_PlayerPhysics() {}
+	virtual ~SD_PlayerPhysics() {}
+	SD_PlayerPhysics(uint64 sessionId, AActor* actor) : SD_ActorPhysics(actor) { SessionId = sessionId; }
+	SD_PlayerPhysics(uint64 sessionId, const FTransform& transform, const FVector& velocity, const FVector& angularVelocity) : SD_ActorPhysics(transform, velocity, angularVelocity)
+	{ 
+		SessionId = sessionId; 
+	}
+
+	friend FArchive& operator<<(FArchive& Archive, SD_PlayerPhysics& Data)
+	{
+		Archive << *(SD_ActorPhysics*)&Data; // 피직스 데이터 전달
+		Archive << Data.SessionId;
+		return Archive;
+	}
+
+public:
+	uint64 SessionId = 0;
+};
+
+
+// 단일 플레이어의 PlayerState를 나타낸다
+class SD_PlayerState : SD_Data
+{
+public:
+	SD_PlayerState() {}
+	virtual ~SD_PlayerState() {}
+	SD_PlayerState(uint64 sessionId, const AActor& actor) 
+	{
+		SessionId = sessionId;
+		// TODO: Hp 등 각종 정보 전달
+	}
+
+	friend FArchive& operator<<(FArchive& Archive, SD_PlayerState& Data)
+	{
+		Archive << Data.SessionId;
+		return Archive;
+	}
+
+	void Serialize(FMemoryWriter& writer) override { writer << *this; }
+	void Deserialize(FMemoryReader& reader) override { reader << *this; }
+
+public:
+	uint64 SessionId = 0;
+};
+
+
+// 서버가 클라이언트들에게 브로드캐스트하는 모든 정보들을 포함한다
+class SD_GameState : SD_Data
+{
+public:
+	SD_GameState() {}
+	SD_GameState(AGameStateBase* gameState, uint32 tick, float deltaTime, const TMap<uint64, uint32>& processedTicks)
+	{
+		Tick = tick;
+		DeltaTime = deltaTime;
+		ProcessedTicks = processedTicks;
+
+		// NOTE: 콘텐츠 제작 시 동기화해야 하는 GameState 데이터들을 여기에서 복사해 저장
+		// 현재는 콘텐츠가 없는 관계로 비어있음
+
+	}
+	virtual ~SD_GameState() {}
+
+	friend FArchive& operator<<(FArchive& Archive, SD_GameState& Data)
+	{
+		Archive << Data.Tick;
+		Archive << Data.DeltaTime;
+
+		if (Archive.IsLoading())
+		{
+			// 피직스
+			Archive << Data.UpdatedPlayerPhysicsCount;
+			for (uint32 i = 0; i < Data.UpdatedPlayerPhysicsCount; ++i)
+			{
+				Archive << Data.TempPhysics;
+				Data.UpdatedPlayerPhysics.Add(Data.TempPhysics);
+			}
+
+			// 스테이트
+			Archive << Data.UpdatedPlayerStatesCount;
+			for (uint32 i = 0; i < Data.UpdatedPlayerStatesCount; ++i)
+			{
+				Archive << Data.TempState;
+				Data.UpdatedPlayerStates.Add(Data.TempState);
+			}
+
+			// ProcessedTicks
+			uint64 tempKey;
+			uint32 tempValue;
+			Archive << Data.ProcessedTicksCount;
+			for (uint32 i = 0; i < Data.ProcessedTicksCount; ++i)
+			{
+				Archive << tempKey;
+				Archive << tempValue;
+				Data.ProcessedTicks.Add(tempKey, tempValue);
+			}
+		}
+		else if (Archive.IsSaving())
+		{
+			// 피직스
+			Data.UpdatedPlayerPhysicsCount = Data.UpdatedPlayerPhysics.Num();
+			Archive << Data.UpdatedPlayerPhysicsCount;
+			for (uint32 i = 0; i < Data.UpdatedPlayerPhysicsCount; ++i)
+			{
+				Archive << Data.UpdatedPlayerPhysics[i];
+			}
+
+			// 스테이트
+			Data.UpdatedPlayerStatesCount = Data.UpdatedPlayerStates.Num();
+			Archive << Data.UpdatedPlayerStatesCount;
+			for (uint32 i = 0; i < Data.UpdatedPlayerStatesCount; ++i)
+			{
+				Archive << Data.UpdatedPlayerStates[i];
+			}
+
+			// ProcessedTicks
+			Data.ProcessedTicksCount = Data.ProcessedTicks.Num();
+			Archive << Data.ProcessedTicksCount;
+			for (auto& element : Data.ProcessedTicks)
+			{
+				Archive << element.Key;
+				Archive << element.Value;
+			}
+		}
+
+		return Archive;
+	}
+
+	void AddPlayerPhysics(SD_PlayerPhysics* playerPhysics)
+	{
+		UpdatedPlayerPhysics.Add(*playerPhysics);
+		UpdatedPlayerPhysicsCount++;
+	}
+
+	void AddPlayerStates(SD_PlayerState* playerState)
+	{
+		UpdatedPlayerStates.Add(*playerState);
+		UpdatedPlayerStatesCount++;
+	}
+
+	void Serialize(FMemoryWriter& writer) override { writer << *this; }
+	void Deserialize(FMemoryReader& reader) override { reader << *this; }
+public:
+	uint32 UpdatedPlayerPhysicsCount = 0;
+	TArray<SD_PlayerPhysics> UpdatedPlayerPhysics; // 물리정보 갱신이 필요한 플레이어들의 물리 값
+	SD_PlayerPhysics TempPhysics;
+
+	uint32 UpdatedPlayerStatesCount = 0;
+	TArray<SD_PlayerState> UpdatedPlayerStates; // State정보 갱신이 필요한 플레이어들의 State 값
+	SD_PlayerState TempState;
+
+	// TODO: 플레이어 외의 액터들도 피직스 정보 싱크 맞도록 고유 id 부여
+
+	uint32 Tick = 0; // 서버 틱 (Real tick)
+	float DeltaTime = 0.0f;
+
+	uint32 ProcessedTicksCount = 0;
+	TMap<uint64, uint32> ProcessedTicks; // 클라가 발송한 인풋들 중 몇틱까지 처리를 완료했는지; 이때 틱 기준은 발송한 클라이언트의 로컬 틱이 기준이다
 };
