@@ -16,6 +16,7 @@ void ANetHandler::BeginPlay()
 {
 	Super::BeginPlay();
 	Init();
+	GetRovenhellGameInstance()->GetNetHandler(); // 최초 캐싱
 }
 
 // Called every frame
@@ -117,7 +118,7 @@ uint32 ANetHandler::GetLastProcessedInputTickForSession(uint64 sessionId)
 {
 	if (!LastProcessedInputTick.Contains(sessionId))
 	{
-		UE_LOG(LogTemp, Error, TEXT("%i번 세션의 LastProcessedInputTick 정보를 찾을 수 없습니다, 기본값으로 새로 추가합니다."), sessionId);
+		UE_LOG(LogTemp, Warning, TEXT("%i번 세션의 LastProcessedInputTick 정보를 찾을 수 없습니다, 기본값으로 새로 추가합니다."), sessionId);
 		LastProcessedInputTick.Add(sessionId, 0); // 새 항목 추가
 	}
 	return LastProcessedInputTick[sessionId];
@@ -387,7 +388,7 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 		// TODO: 변경된 플레이어에 대해서만 정보를 보내는 것으로 패킷 크기 축소 가능
 		for (const auto& element : GetRovenhellGameInstance()->GetPlayers())
 		{
-			SD_PlayerPhysics* playerPhysicsData = new SD_PlayerPhysics(element.Key, element.Value.Get()->GetPawn());
+			SD_PawnPhysics* playerPhysicsData = new SD_PawnPhysics(element.Key, element.Value.Get());
 			gameStateData->AddPlayerPhysics(playerPhysicsData);
 		}
 		

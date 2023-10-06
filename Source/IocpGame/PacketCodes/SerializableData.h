@@ -47,22 +47,13 @@ public:
 		XVelocity = actor->GetRootComponent()->ComponentVelocity.X;
 		YVelocity = actor->GetRootComponent()->ComponentVelocity.Y;
 		ZVelocity = actor->GetRootComponent()->ComponentVelocity.Z;
-
-		FVector AngularVelocity = Cast<UPrimitiveComponent>(actor->GetRootComponent())->GetPhysicsAngularVelocityInDegrees();
-		XAngularVelocity = AngularVelocity.X;
-		YAngularVelocity = AngularVelocity.Y;
-		ZAngularVelocity = AngularVelocity.Z;
 	}
-	SD_ActorPhysics(const FTransform& transform, const FVector& velocity, const FVector& angularVelocity)
+	SD_ActorPhysics(const FTransform& transform, const FVector& velocity)
 	{
 		Transform = transform;
 		XVelocity = velocity.X;
 		YVelocity = velocity.Y;
 		ZVelocity = velocity.Z;
-
-		XAngularVelocity = angularVelocity.X;
-		YAngularVelocity = angularVelocity.Y;
-		ZAngularVelocity = angularVelocity.Z;
 	}
 
 	friend FArchive& operator<<(FArchive& Archive, SD_ActorPhysics& Data)
@@ -71,10 +62,6 @@ public:
 		Archive << Data.XVelocity;
 		Archive << Data.YVelocity;
 		Archive << Data.ZVelocity;
-
-		Archive << Data.XAngularVelocity;
-		Archive << Data.YAngularVelocity;
-		Archive << Data.ZAngularVelocity;
 
 		return Archive;
 	}
@@ -87,10 +74,6 @@ public:
 	double XVelocity = 0.f; // 대상 액터의 RootComponent의 ComponentVelocity 사용; LinearVelocity;
 	double YVelocity = 0.f;
 	double ZVelocity = 0.f;
-
-	double XAngularVelocity = 0.f;
-	double YAngularVelocity = 0.f;
-	double ZAngularVelocity = 0.f;
 };
 
 // InputAction과 InputActionValue에 대한 정보를 담는다
@@ -108,14 +91,12 @@ public:
 			case EInputActionValueType::Axis1D:
 				{
 					X = inputValue.Get<float>();
-					AxisDimension = 1;
 					break;
 				}
 			case EInputActionValueType::Axis2D:
 				{
 					X = inputValue.Get<FVector2D>().X;
 					Y = inputValue.Get<FVector2D>().Y;
-					AxisDimension = 2;
 					break;
 				}
 			case EInputActionValueType::Axis3D:
@@ -123,7 +104,6 @@ public:
 					X = inputValue.Get<FVector>().X;
 					Y = inputValue.Get<FVector>().Y;
 					Z = inputValue.Get<FVector>().Z;
-					AxisDimension = 3;
 					break;
 				}
 			default:
@@ -137,7 +117,6 @@ public:
 	friend FArchive& operator<<(FArchive& Archive, SD_GameInput& Data)
 	{
 		Archive << Data.ActionType;
-		Archive << Data.AxisDimension;
 		Archive << Data.X;
 		Archive << Data.Y;
 		Archive << Data.Z;
@@ -150,8 +129,7 @@ public:
 	void Deserialize(FMemoryReader& reader) override { reader << *this; }
 
 public:
-	uint32 ActionType = ActionTypeEnum::UNDEFINED;
-	int AxisDimension = 0;
+	uint8 ActionType = ActionTypeEnum::UNDEFINED;
 	double X = 0.0f;
 	double Y = 0.0f;
 	double Z = 0.0f;
@@ -205,18 +183,18 @@ public:
 
 
 // 단일 플레이어의 물리 정보를 나타낸다
-class SD_PlayerPhysics : public SD_ActorPhysics
+class SD_PawnPhysics : public SD_ActorPhysics
 {
 public:
-	SD_PlayerPhysics() {}
-	virtual ~SD_PlayerPhysics() {}
-	SD_PlayerPhysics(uint64 sessionId, AActor* actor) : SD_ActorPhysics(actor) { SessionId = sessionId; }
-	SD_PlayerPhysics(uint64 sessionId, const FTransform& transform, const FVector& velocity, const FVector& angularVelocity) : SD_ActorPhysics(transform, velocity, angularVelocity)
+	SD_PawnPhysics() {}
+	virtual ~SD_PawnPhysics() {}
+	SD_PawnPhysics(uint64 sessionId, AActor* actor) : SD_ActorPhysics(actor) { SessionId = sessionId; }
+	SD_PawnPhysics(uint64 sessionId, const FTransform& transform, const FVector& velocity) : SD_ActorPhysics(transform, velocity)
 	{ 
 		SessionId = sessionId; 
 	}
 
-	friend FArchive& operator<<(FArchive& Archive, SD_PlayerPhysics& Data)
+	friend FArchive& operator<<(FArchive& Archive, SD_PawnPhysics& Data)
 	{
 		Archive << *(SD_ActorPhysics*)&Data; // 피직스 데이터 전달
 		Archive << Data.SessionId;
@@ -336,7 +314,7 @@ public:
 		return Archive;
 	}
 
-	void AddPlayerPhysics(SD_PlayerPhysics* playerPhysics)
+	void AddPlayerPhysics(SD_PawnPhysics* playerPhysics)
 	{
 		UpdatedPlayerPhysics.Add(*playerPhysics);
 		UpdatedPlayerPhysicsCount++;
@@ -352,13 +330,13 @@ public:
 	void Deserialize(FMemoryReader& reader) override { reader << *this; }
 public:
 	uint32 UpdatedPlayerPhysicsCount = 0;
-	TArray<SD_PlayerPhysics> UpdatedPlayerPhysics; // 물리정보 갱신이 필요한 플레이어들의 물리 값
-	SD_PlayerPhysics TempPhysics;
+	TArray<SD_PawnPhysics> UpdatedPlayerPhysics; // 접속한 모든 플레이어들의 물리 값; 현재 접속한 모든 플레이어들을 클라이언트와 동기화하기 위해서도 사용됨. 이는 패킷 크기 및 발송빈도를 줄이기 위함
+	SD_PawnPhysics TempPhysics;
 
 	uint32 UpdatedPlayerStatesCount = 0;
 	TArray<SD_PlayerState> UpdatedPlayerStates; // State정보 갱신이 필요한 플레이어들의 State 값
 	SD_PlayerState TempState;
-
+	// TODO: 플레이어 id가 중복해서 들어가지 않게 피직스와 스테이트를 합치고, 대신 플레이어 접속 싱크를 맞추는 용도로 접속 플레이어 아이디를 담은 별도의 어레이를 만들어주면 지금보다 최적화 가능
 	// TODO: 플레이어 외의 액터들도 피직스 정보 싱크 맞도록 고유 id 부여
 
 	uint32 Tick = 0; // 서버 틱 (Real tick)

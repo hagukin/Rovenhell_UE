@@ -35,14 +35,14 @@ void UActorPhysicsSyncComponent::TickComponent(float DeltaTime, ELevelTick TickT
 	}
 }
 
-bool UActorPhysicsSyncComponent::IsActorInSyncWith(const FTransform& Transform, const FVector& Velocity, const FVector& AngularVelocity)
+bool UActorPhysicsSyncComponent::IsActorInSyncWith(const FTransform& Transform, const FVector& Velocity)
 {
 	// 틱 히스토리 내부에 주어진 입력과 싱크가 맞는 기록이 있는지 확인한다
 	uint32 currentIndex = PhysHead;
 	for (uint32 i = 0; i < (uint32)MAX_PHYSICS_HISTORY_SIZE; ++i)
 	{
 		// 물리 정보가 서버와 일치하는 틱이 있는지 판정
-		if(IsValidPhysicsData(currentIndex, Transform, Velocity, AngularVelocity))
+		if(IsValidPhysicsData(currentIndex, Transform, Velocity))
 		{
 			return true;
 		}
@@ -52,10 +52,10 @@ bool UActorPhysicsSyncComponent::IsActorInSyncWith(const FTransform& Transform, 
 	uint32 prev = PhysTail;
 	MoveOnePhysicsHistoryCursor();
 	AddCurrentPhysicsInfo(); // 현재 물리 정보 추가
-	return IsValidPhysicsData(prev, Transform, Velocity, AngularVelocity);
+	return IsValidPhysicsData(prev, Transform, Velocity);
 }
 
-void UActorPhysicsSyncComponent::AdjustActorPhysics(float ServerDeltaTime, const FTransform& Transform, const FVector& Velocity, const FVector& AngularVelocity)
+void UActorPhysicsSyncComponent::AdjustActorPhysics(float ServerDeltaTime, const FTransform& Transform, const FVector& Velocity)
 {
 	// 파라미터로 전달되는 서버 델타는 기존에 추측 항법 계산을 위해 사용했으나, 현재는 사용하지 않는다
 	// 다만 삭제는 아직 하지 않고 일단 보류한다
@@ -67,16 +67,15 @@ void UActorPhysicsSyncComponent::AdjustActorPhysics(float ServerDeltaTime, const
 	// 마지막으로 수신한 서버측 위치로 이동한다
 	GetOwner()->SetActorTransform(Transform, false, nullptr, ETeleportType::None);
 	GetOwner()->GetRootComponent()->ComponentVelocity = Velocity;
-	Cast<UPrimitiveComponent>(GetOwner()->GetRootComponent())->SetPhysicsAngularVelocityInDegrees(AngularVelocity);
 }
 
 void UActorPhysicsSyncComponent::AddCurrentPhysicsInfo()
 {
-	ActorPhysics actorPhysics = { GetOwner()->GetTransform(), GetOwner()->GetRootComponent()->ComponentVelocity, Cast<UPrimitiveComponent>(GetOwner()->GetRootComponent())->GetPhysicsAngularVelocityInDegrees() }; // TODO: Velocity 점검 필요
+	ActorPhysics actorPhysics = { GetOwner()->GetTransform(), GetOwner()->GetRootComponent()->ComponentVelocity }; // TODO: Velocity 점검 필요
 	PhysicsHistory[PhysTail] = actorPhysics; // 노드 생성
 }
 
-bool UActorPhysicsSyncComponent::IsValidPhysicsData(uint32 index, const FTransform& Transform, const FVector& Velocity, const FVector& AngularVelocity)
+bool UActorPhysicsSyncComponent::IsValidPhysicsData(uint32 index, const FTransform& Transform, const FVector& Velocity)
 {
 	// 서버에서의 이동 연산 결과는 결국 클라이언트 틱에서의 연산결과 중 하나와 매우 근접하다 
 	// (클라와 똑같은 정보를 처리하며 처리 rate만 다른 것이기 때문에)

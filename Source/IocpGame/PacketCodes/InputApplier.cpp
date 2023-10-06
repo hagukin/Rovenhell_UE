@@ -60,13 +60,7 @@ bool InputApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, class ANe
 	{
 		if (input.ActionType == (uint32)ActionTypeEnum::MOVE)
 		{
-			APlayerController* controller = netHandler->GetRovenhellGameInstance()->GetPlayerControllerOfOwner(sessionId);
-			if (!controller)
-			{ 
-				UE_LOG(LogTemp, Error, TEXT("세션 아이디 %i가 등록되어있지 않아 인풋을 처리할 수 없습니다."), sessionId);
-				return false;
-			}
-			APlayerPawn* playerPawn = Cast<APlayerPawn>(controller->GetPawn());
+			APlayerPawn* playerPawn = netHandler->GetRovenhellGameInstance()->GetPlayerOfOwner(sessionId);
 			if (!playerPawn)
 			{
 				UE_LOG(LogTemp, Error, TEXT("인풋 처리의 대상을 플레이어 폰으로 캐스팅 할 수 없습니다."), sessionId);

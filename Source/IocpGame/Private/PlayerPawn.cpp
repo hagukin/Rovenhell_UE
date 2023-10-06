@@ -75,20 +75,7 @@ void APlayerPawn::Move(const FInputActionValue& Value, float DeltaTime)
 	// 실제 이동은 MovementComponent에서 처리한다.
 	// 여기서는 이동 요청을 처리한다.
 	FVector2D MovementVector = Value.Get<FVector2D>();
-
-	AController* controller = GetController();
-	if (!controller)
-	{
-		UE_LOG(LogTemp, Error, TEXT("컨트롤러가 없어 폰에 대한 인풋을 처리할 수 없습니다!"));
-		return;
-	}
-
-	// 전면 방향 계산
-	const FRotator rotation = controller->GetControlRotation();
-	const FRotator yawRotation(0, rotation.Yaw, 0);
-	const FVector forwardDirection = FRotationMatrix(yawRotation).GetUnitAxis(EAxis::X);
-	const FVector rightDirection = FRotationMatrix(yawRotation).GetUnitAxis(EAxis::Y);
-	MovementComp->AddMovementData((forwardDirection * MovementVector.Y) + (rightDirection * MovementVector.X), DeltaTime); // 처리 큐에 추가
+	MovementComp->AddMovementData(FVector(MovementVector.Y, MovementVector.X, 0), DeltaTime); // 처리 큐에 추가
 }
 
 void APlayerPawn::Move_Entry(const FInputActionValue& Value)

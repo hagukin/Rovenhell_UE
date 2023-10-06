@@ -18,7 +18,7 @@ bool GameStateApplier::Init(TSharedPtr<NetSession> session, UGameInstance* gameI
 	return true;
 }
 
-bool GameStateApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, class ANetHandler* netHandler)
+bool GameStateApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
 {
 	URovenhellGameInstance* gameInstance = Cast<URovenhellGameInstance>(GameInstance);
 	if (!gameInstance) return false;
@@ -35,14 +35,15 @@ bool GameStateApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, class ANetHand
 		case HostTypeEnum::LOGIC_SERVER:
 		case HostTypeEnum::LOGIC_SERVER_HEADLESS:
 			{
-				applied &= ApplyPacket_UEServer(packet, netHandler);
+				applied &= false;
+				UE_LOG(LogTemp, Error, TEXT("로직서버는 GameState 패킷을 처리하지 않아야 합니다."));
 				break;
 			}
 	}
     return applied;
 }
 
-bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, class ANetHandler* netHandler)
+bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
 {
 	// 역직렬화
 	netHandler->GetDeserializerShared()->Clear();
@@ -54,36 +55,38 @@ bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, class
 	Cast<URovenhellGameInstance>(GameInstance)->TickCounter->SetServerTick_UEClient(gameState->Tick);
 
 	// 데이터 처리
-	ApplyPhysics_UEClient(gameState, netHandler);
+	ApplyPhysicsAndSyncPlayers_UEClient(gameState, netHandler);
 	// TODO: GameState 내의 다른 데이터들도 처리
 
 	return true;
 }
 
-void GameStateApplier::ApplyPhysics_UEClient(SD_GameState* gameState, class ANetHandler* netHandler)
+void GameStateApplier::ApplyPhysicsAndSyncPlayers_UEClient(SD_GameState* gameState, ANetHandler* netHandler)
 {
-	for (SD_PlayerPhysics playerPhysics : gameState->UpdatedPlayerPhysics)
+	for (SD_PawnPhysics playerPhysics : gameState->UpdatedPlayerPhysics)
 	{
 		// 세션 id 기반으로 플레이어 폰 접근 시도
-		APlayerPawn* targetPlayer = nullptr;
-		if (APlayerController* playerController = netHandler->GetRovenhellGameInstance()->GetPlayerControllerOfOwner(playerPhysics.SessionId))
-		{
-			targetPlayer = Cast<APlayerPawn>(playerController->GetPawn());
-		}
+		APlayerPawn* targetPlayer = netHandler->GetRovenhellGameInstance()->GetPlayerOfOwner(playerPhysics.SessionId);
+
+		// 새로운 세션의 접속 확인
 		if (!targetPlayer)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("등록되지 않았거나, 연결이 해제된 세션 id의 플레이어 폰에 접근할 수 없습니다."));
-			continue;
+			OnNewClientConnection_UEClient(playerPhysics.SessionId, netHandler);
+			targetPlayer = netHandler->GetRovenhellGameInstance()->GetPlayerOfOwner(playerPhysics.SessionId);
+			if (!targetPlayer)
+			{
+				UE_LOG(LogTemp, Fatal, TEXT("새로 접속한 클라이언트의 플레이어 폰이 정상적으로 생성되지 않았습니다."));
+				continue;
+			}
 		}
 
 		// 물리 보정
 		FVector velocity(playerPhysics.XVelocity, playerPhysics.YVelocity, playerPhysics.ZVelocity);
-		FVector angularVelocity(playerPhysics.XAngularVelocity, playerPhysics.YAngularVelocity, playerPhysics.ZAngularVelocity);
 		// 보정 필요 여부 판단
-		if (!targetPlayer->GetPhysicsSyncComp()->IsActorInSyncWith(playerPhysics.Transform, velocity, angularVelocity))
+		if (!targetPlayer->GetPhysicsSyncComp()->IsActorInSyncWith(playerPhysics.Transform, velocity))
 		{
 			// 보정 처리
-			targetPlayer->GetPhysicsSyncComp()->AdjustActorPhysics(gameState->DeltaTime, playerPhysics.Transform, velocity, angularVelocity);
+			targetPlayer->GetPhysicsSyncComp()->AdjustActorPhysics(gameState->DeltaTime, playerPhysics.Transform, velocity);
 
 			// 인풋 재처리
 			if (class UActorInputSyncComponent* pawnSyncComp = targetPlayer->GetInputSyncComp())
@@ -91,7 +94,7 @@ void GameStateApplier::ApplyPhysics_UEClient(SD_GameState* gameState, class ANet
 				uint32 processedTick = 0;
 				if (!gameState->ProcessedTicks.Contains(playerPhysics.SessionId))
 				{
-					UE_LOG(LogTemp, Error, TEXT("세션 아이디 %i번 플레이어의 ProcessedTick 정보를 찾을 수 없습니다. 인풋 재처리를 실행하지 않습니다."));
+					UE_LOG(LogTemp, Warning, TEXT("세션 아이디 %i번 플레이어의 ProcessedTick 정보를 찾을 수 없습니다. 인풋 재처리를 실행하지 않습니다."));
 					continue;
 				}
 				else
@@ -109,7 +112,18 @@ void GameStateApplier::ApplyPhysics_UEClient(SD_GameState* gameState, class ANet
 	}
 }
 
-bool GameStateApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, class ANetHandler* netHandler)
+void GameStateApplier::OnNewClientConnection_UEClient(uint64 clientSessionId, ANetHandler* netHandler)
 {
-	return true;
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("다른 플레이어의 접속이 감지되었습니다: %i번 클라이언트 세션 연결"), clientSessionId));
+
+	// 플레이어 폰 추가
+	TWeakObjectPtr<ANetActorSpawner> netSpawner = netHandler->GetRovenhellGameInstance()->GetNetActorSpawner();
+	if (netSpawner != nullptr && netSpawner.IsValid())
+	{
+		APlayerPawn* player = netSpawner->SpawnNewPlayerPawn();
+		netHandler->GetRovenhellGameInstance()->AddPlayer(clientSessionId, player);
+		return;
+	}
+	UE_LOG(LogTemp, Error, TEXT("NetSpawner를 찾지 못했습니다."));
+	return;
 }

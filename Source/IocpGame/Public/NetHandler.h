@@ -47,7 +47,7 @@ public:
 	AIocpGameState* GetIocpGameState() { return Cast<AIocpGameState>(GetWorld()->GetGameState()); }
 	URovenhellGameInstance* GetRovenhellGameInstance() { return Cast<URovenhellGameInstance>(GetGameInstance()); }
 	const TMap<uint64, uint32>& GetLastProcessedInputTicks() { return LastProcessedInputTick; }
-
+	
 private:
 	void Init();
 	void InitGameHostType();
