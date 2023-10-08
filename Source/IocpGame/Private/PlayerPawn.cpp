@@ -18,6 +18,7 @@ APlayerPawn::APlayerPawn()
 	CapsuleComp = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CapsuleComp"));
 	SetRootComponent(CapsuleComp); // 물리적 실체가 있는 것으로 루트 교환
 	CapsuleComp->SetSimulatePhysics(true);
+	CapsuleComp->SetPhysicsMaxAngularVelocityInDegrees(0); // 의도되지 않은 회전 제한
 
 	// 메쉬
 	SkeletalMeshComp = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SkeletalMeshComp"));

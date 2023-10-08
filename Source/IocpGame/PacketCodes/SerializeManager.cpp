@@ -38,7 +38,13 @@ bool SerializeManager::Deserialize(SD_Data* outData)
 
 bool SerializeManager::WriteDataToBuffer(TSharedPtr<SendBuffer> writeBuffer) const
 {
-	return writeBuffer->Write(Array->GetData(), (SIZE_T)Array->Num());
+	if (!writeBuffer->Write(Array->GetData(), (SIZE_T)Array->Num()))
+	{
+		// TODO: Scatter/Gather -> 데이터를 버퍼 여러 개로 쪼개 발송, 수신후 재조합
+		UE_LOG(LogTemp, Error, TEXT("직렬화된 데이터가 버퍼 크기를 초과해 Write 할 수 없습니다. 버퍼 크기: %i바이트, 데이터 크기: %i바이트"), writeBuffer->GetCapacity(), Array->Num());
+		return false;
+	};
+	return true;
 }
 
 bool SerializeManager::ReadDataFromBuffer(TSharedPtr<RecvBuffer> readBuffer)

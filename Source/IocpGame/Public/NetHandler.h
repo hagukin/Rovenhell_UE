@@ -56,10 +56,16 @@ private:
 	
 	/*UEClient*/
 	void Tick_UEClient(float DeltaTime);
+	void RegisterSend_UEClient(float DeltaTime);
+	void GetPendingBuffer_UEClient(float DeltaTime);
+	void ProcessRecv_UEClient(float DeltaTime);
 
 	/*UEServer*/
 	void StartingNewGameTick_UEServer();
 	void Tick_UEServer(float DeltaTime);
+	void GetPendingBuffer_UEServer(float DeltaTime);
+	void ProcessRecv_UEServer(float DeltaTime);
+	void RegisterSend_UEServer(float DeltaTime);
 private:
 	TSharedPtr<NetSession> Session;
 	TSharedPtr<RecvBuffer> AddToRecvPendings = nullptr;

@@ -190,44 +190,54 @@ void ANetHandler::InitGameHostType()
 void ANetHandler::Tick_UEClient(float DeltaTime)
 {
 	AccumulatedTickTime += DeltaTime;
-	// 인터벌마다 인풋 정보를 서버로 전송한다
-	if (AccumulatedTickTime >= CONSUME_HISTORY_BUFFER_CYCLE)
+	if (AccumulatedTickTime >= CONSUME_HISTORY_BUFFER_CYCLE) // 인터벌마다 Send
 	{
 		AccumulatedTickTime = 0;
-
-		APlayerPawn* Player = Cast<APlayerPawn>(UGameplayStatics::GetPlayerPawn(this, 0));
-		TSharedPtr<SendBuffer> writeBuf;
-		while (!writeBuf) writeBuf = Session->BufManager->SendPool->PopBuffer();
-		FillPacketSenderTypeHeader(writeBuf);
-
-		SD_GameInputHistory* inputHistory = new SD_GameInputHistory(Player->GetGameInputPendings());
-
-		Serializer->Serialize((SD_Data*)inputHistory);
-		Serializer->WriteDataToBuffer(writeBuf);
-		Serializer->Clear();
-
-		Player->ClearGameInputPendings(); // 기존 인풋 히스토리를 전부 Flush한다
-
-		((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();
-		((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_ALLOW_MULTIPLE_PER_TICK;
-		((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_INPUT;
-		Session->PushSendQueue(writeBuf);
+		RegisterSend_UEClient(DeltaTime);
 	}
+	ProcessRecv_UEClient(DeltaTime);
+}
 
-	//// 수신
-	// 1 event tick에 하나의 패킷을 처리
+void ANetHandler::RegisterSend_UEClient(float DeltaTime)
+{
+	APlayerPawn* Player = Cast<APlayerPawn>(UGameplayStatics::GetPlayerPawn(this, 0));
+	TSharedPtr<SendBuffer> writeBuf = nullptr;
+	while (!writeBuf) writeBuf = Session->BufManager->SendPool->PopBuffer();
+	FillPacketSenderTypeHeader(writeBuf);
+
+	SD_GameInputHistory* inputHistory = new SD_GameInputHistory(Player->GetGameInputPendings());
+
+	Serializer->Serialize((SD_Data*)inputHistory);
+	Serializer->WriteDataToBuffer(writeBuf);
+	Serializer->Clear();
+
+	Player->ClearGameInputPendings(); // 기존 인풋 히스토리를 전부 Flush한다
+
+	((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();
+	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_ALLOW_MULTIPLE_PER_TICK;
+	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_INPUT;
+	Session->PushSendQueue(writeBuf);
+}
+
+void ANetHandler::GetPendingBuffer_UEClient(float DeltaTime)
+{
+	while (!Session->Receiver->Lock.TryLock());
+	for (auto& pair : Session->Receiver->PendingClientBuffers)
+	{
+		if (!pair.Value->IsEmpty())
+		{
+			pair.Value->Dequeue(RecvPending);
+			break; // NOTE: 현재는 서버가 하나라는 전제 하에 바로 break 중이지만, 추후 만일 분산서버 연산을 처리할 경우 수정이 필요함.
+		}
+	}
+	Session->Receiver->Lock.Unlock();
+}
+
+void ANetHandler::ProcessRecv_UEClient(float DeltaTime)
+{
 	while (!RecvPending)
 	{
-		while (!Session->Receiver->Lock.TryLock());
-		for (auto& pair : Session->Receiver->PendingClientBuffers)
-		{
-			if (!pair.Value->IsEmpty())
-			{
-				pair.Value->Dequeue(RecvPending);
-				break; // NOTE: 현재는 서버가 하나라는 전제 하에 바로 break 중이지만, 추후 만일 분산서버 연산을 처리할 경우 수정이 필요함.
-			}
-		}
-		Session->Receiver->Lock.Unlock();
+		GetPendingBuffer_UEClient(DeltaTime);
 		if (!RecvPending) break; // 모든 세션으로부터 어떠한 대기 패킷도 없을 경우
 
 		uint16 recvBufferProtocol = ((PacketHeader*)RecvPending->GetBuf())->protocol;
@@ -250,7 +260,6 @@ void ANetHandler::Tick_UEClient(float DeltaTime)
 			}
 		}
 	}
-
 	if (RecvPending)
 	{
 		//PacketDebug(DeltaTime);
@@ -282,7 +291,19 @@ void ANetHandler::StartingNewGameTick_UEServer()
 void ANetHandler::Tick_UEServer(float DeltaTime)
 {
 	StartingNewGameTick_UEServer();
+	GetPendingBuffer_UEServer(DeltaTime);
+	ProcessRecv_UEServer(DeltaTime);
 
+	AccumulatedTickTime += DeltaTime;
+	if (AccumulatedTickTime >= DESIRED_SERVER_BROADCAST_TIME) // 인터벌마다 Send
+	{
+		AccumulatedTickTime = 0;
+		RegisterSend_UEServer(DeltaTime);
+	}
+}
+
+void ANetHandler::GetPendingBuffer_UEServer(float DeltaTime)
+{
 	// 이번 틱에 처리할 패킷들을 세션별로 하나 이상씩 가져온다
 	while (!Session->Receiver->Lock.TryLock());
 	for (auto& pair : Session->Receiver->PendingClientBuffers)
@@ -294,15 +315,16 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 			RecvPendings.Enqueue(AddToRecvPendings);
 
 			// 1틱 당 복수 처리가 허용된 패킷의 경우에는 계속 꺼내온다
-			if (((PacketHeader*)(AddToRecvPendings->GetBuf()))->protocol == PacketProtocol::CLIENT_ONCE_PER_TICK) 
+			if (((PacketHeader*)(AddToRecvPendings->GetBuf()))->protocol == PacketProtocol::CLIENT_ONCE_PER_TICK)
 				break;
 		}
 	}
 	Session->Receiver->Lock.Unlock();
+}
 
+void ANetHandler::ProcessRecv_UEServer(float DeltaTime)
+{
 	//uint32 packetCount = 0; // Stress test
-
-	//// 수신
 	while (!RecvPendings.IsEmpty() || RecvPending)
 	{
 		if (RecvPending)
@@ -364,40 +386,35 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 			}
 		}
 	}
-
 	//UE_LOG(LogTemp, Warning, TEXT("로직서버 틱당 패킷 %i개 처리, 초당 %f개 처리"), packetCount, packetCount / DeltaTime); // Stress test
+}
 
-	//// 송신
-	AccumulatedTickTime += DeltaTime;
-	// 인터벌마다 서버 정보를 Broadcast한다
-	if (AccumulatedTickTime >= DESIRED_SERVER_BROADCAST_TIME)
+void ANetHandler::RegisterSend_UEServer(float DeltaTime)
+{
+	TSharedPtr<SendBuffer> writeBuf = nullptr;
+	while (!writeBuf) writeBuf = GetSessionShared()->BufManager->SendPool->PopBuffer();
+	GetSerializerShared()->Clear();
+
+	SD_GameState* gameStateData = new SD_GameState(
+		GetWorld()->GetGameState(),
+		GetRovenhellGameInstance()->TickCounter->GetTick(),
+		DeltaTime,
+		GetLastProcessedInputTicks()
+	);
+
+	// 모든 플레이어들에 대해서 물리 정보를 갱신한다.
+	// TODO: 변경된 플레이어에 대해서만 정보를 보내는 것으로 패킷 크기 축소 가능
+	for (const auto& element : GetRovenhellGameInstance()->GetPlayers())
 	{
-		AccumulatedTickTime = 0;
-		TSharedPtr<SendBuffer> writeBuf;
-		while (!writeBuf) writeBuf = GetSessionShared()->BufManager->SendPool->PopBuffer();
-		GetSerializerShared()->Clear();
-
-		SD_GameState* gameStateData = new SD_GameState(
-			GetWorld()->GetGameState(), 
-			GetRovenhellGameInstance()->TickCounter->GetTick(),
-			DeltaTime, 
-			GetLastProcessedInputTicks()
-		);
-		
-		// 모든 플레이어들에 대해서 물리 정보를 갱신한다.
-		// TODO: 변경된 플레이어에 대해서만 정보를 보내는 것으로 패킷 크기 축소 가능
-		for (const auto& element : GetRovenhellGameInstance()->GetPlayers())
-		{
-			SD_PawnPhysics* playerPhysicsData = new SD_PawnPhysics(element.Key, element.Value.Get());
-			gameStateData->AddPlayerPhysics(playerPhysicsData);
-		}
-		
-		GetSerializerShared()->Serialize((SD_Data*)gameStateData);
-		GetSerializerShared()->WriteDataToBuffer(writeBuf);
-		FillPacketSenderTypeHeader(writeBuf);
-		((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();
-		((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::LOGIC_EVENT;
-		((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_STATE;
-		GetSessionShared()->PushSendQueue(writeBuf);
+		SD_PawnPhysics* playerPhysicsData = new SD_PawnPhysics(element.Key, element.Value.Get());
+		gameStateData->AddPlayerPhysics(playerPhysicsData);
 	}
+
+	GetSerializerShared()->Serialize((SD_Data*)gameStateData);
+	GetSerializerShared()->WriteDataToBuffer(writeBuf);
+	FillPacketSenderTypeHeader(writeBuf);
+	((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();
+	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::LOGIC_EVENT;
+	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_STATE;
+	GetSessionShared()->PushSendQueue(writeBuf);
 }
