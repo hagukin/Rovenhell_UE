@@ -1,4 +1,6 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// Copyright 2023 Haguk Kim
+// Author: Haguk Kim
+
 #include "NetAddress.h"
 
 NetAddress::NetAddress()
