@@ -24,14 +24,14 @@ bool MiddlemanPacketApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, class AN
 {
     const PacketHeader header = *((PacketHeader*)(packet->GetBuf()));
 	bool applied = false;
-	switch (header.id)
+	switch (header.type)
 	{
-	    case PacketId::SESSION_INFO:
+	    case PacketType::SESSION_INFO:
 	    {
 		    applied = ApplySessionInfo(packet, netHandler);
 		    break;
 	    }
-        case PacketId::SESSION_CONNECTED:
+        case PacketType::SESSION_CONNECTED:
         {
             // 어떤 클라이언트의 연결 알림은 오직 로직 서버만 수신함
             // 그 후 로직 서버가 접속을 나머지 클라이언트에게 알림
@@ -39,7 +39,7 @@ bool MiddlemanPacketApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, class AN
             applied = ApplySessionConnection(packet, netHandler);
             break;
         }
-        case PacketId::SESSION_DISCONNECTED:
+        case PacketType::SESSION_DISCONNECTED:
         {
             // 어떤 클라이언트의 연결 해제 알림은 로직서버를 포함한 모든 클라이언트가 수신함
             // 이는 연결 성립 떄와 다르게, 클라이언트가 최대한 빠르게 해당 플레이어의 연결해제 소식을 아는 것이 더 유리하기 때문임.
@@ -50,7 +50,7 @@ bool MiddlemanPacketApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, class AN
         }
 	    default:
         {
-            UE_LOG(LogTemp, Warning, TEXT("MiddlemanPacketApplier가 처리할 수 없는 잘못된 패킷입니다."), header.id);
+            UE_LOG(LogTemp, Warning, TEXT("MiddlemanPacketApplier가 처리할 수 없는 잘못된 패킷입니다."), header.type);
             break;
         }
 	}

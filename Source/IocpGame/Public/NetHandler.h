@@ -54,6 +54,7 @@ private:
 	void InitGameHostType();
 	void PacketDebug(float DeltaTime);
 	bool DistributePendingPacket(); // RecvPending 패킷을 적절한 Applier에게 전달하고, 처리가 완료되면 버퍼 풀에 버퍼를 반환한다
+	uint8 GenerateUniquePacketId();
 	
 	/*UEClient*/
 	void Tick_UEClient(float DeltaTime);
@@ -84,6 +85,8 @@ private:
 	TSharedPtr<SerializeManager> Deserializer = nullptr;
 
 	float AccumulatedTickTime = 0.0f; // ms; 일정 주기로 tick에서 무언가를 처리하기 위해 사용; 매 틱에서의 DeltaTime 더해 누적
+
+	uint8 PacketUniqueId = 1;
 
 private:
 	/*UEServer*/

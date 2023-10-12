@@ -24,10 +24,9 @@ public:
 	bool Serialize(SD_Data* inData);
 	bool Deserialize(SD_Data* outData);
 
-	bool WriteDataToBuffer(TSharedPtr<SendBuffer> writeBuffer) const;
+	bool WriteDataToBuffer(TSharedPtr<SendBuffer> writeBuffer, uint8* dataCursor, int32 dataSize) const;
 	bool ReadDataFromBuffer(TSharedPtr<RecvBuffer> readBuffer);
 
-private:
-	
+public:
 	TUniquePtr<TArray<uint8>> Array;
 };

@@ -115,11 +115,14 @@ void SendBuffer::SetDefaultHeader()
 	// 버퍼가 비었다고 가정
 	// 여기서 정의된 헤더값들은 유효하지 않기 때문에 반드시 발송 전에 적절한 헤더 값으로 교체해 주는 작업이 필요
 	// 단 size의 경우에는 Write() 과정에서 알아서 업데이트 되기 때문에 senderType과 id만 제대로 입력해주면 됨
+	((PacketHeader*)Buffer)->uniqueId = 0;
+	((PacketHeader*)Buffer)->packetOrder = 0;
+	((PacketHeader*)Buffer)->fragmentCount = 1;
 	((PacketHeader*)Buffer)->size = sizeof(PacketHeader);
 	((PacketHeader*)Buffer)->senderType = HostTypeEnum::NONE;
 	((PacketHeader*)Buffer)->senderId = 0;
 	((PacketHeader*)Buffer)->protocol = PacketProtocol::NO_PROTOCOL;
-	((PacketHeader*)Buffer)->id = PacketId::DEFAULT;
+	((PacketHeader*)Buffer)->type = PacketType::DEFAULT;
 
 	BufferSize = sizeof(PacketHeader); // += 가 아니라 = 임에 유의
 }

@@ -157,7 +157,7 @@ bool NetSession::Recv(TSharedPtr<RecvBuffer> recvBuffer)
 	{
 		if (bytesToRead > (int32)recvBuffer->GetLeftover())
 		{
-			UE_LOG(LogTemp, Fatal, TEXT("버퍼의 잔여 공간이 부족합니다, 현재까지 Recv한 버퍼는 유실됩니다."));
+			UE_LOG(LogTemp, Fatal, TEXT("버퍼의 잔여 공간이 부족합니다, 현재까지 Recv한 버퍼는 유실됩니다. 읽어야 하는 데이터의 크기: %i"), bytesToRead);
 			return false;
 		}
 		if (!NetSock->GetSocket()->Recv(recvBuffer->GetWriteCursor(), bytesToRead, bytesRead, ESocketReceiveFlags::None))

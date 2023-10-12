@@ -129,50 +129,50 @@ void ANetHandler::FillPacketSenderTypeHeader(TSharedPtr<SendBuffer> buffer)
 	((PacketHeader*)(buffer->GetBuf()))->senderType = HostType;
 }
 
-void ANetHandler::PacketDebug(float DeltaTime)
-{
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("틱 초: %f"), DeltaTime));
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("수신 패킷 크기: %d"), (int32)RecvPending->GetSize()));
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("수신 패킷 0번 문자: %i"), RecvPending->GetData()[0]));
-}
-
 bool ANetHandler::DistributePendingPacket()
 {
 	// RecvPending 버퍼를 적절한 Applier로 전달한다
 	const PacketHeader header = *((PacketHeader*)(RecvPending->GetBuf()));
 
 	bool applied = false;
-	switch (header.id)
+	switch (header.type)
 	{
-	case PacketId::GAME_INPUT:
+	case PacketType::GAME_INPUT:
 		{
 			applied = InApplier->ApplyPacket(RecvPending, this);
 			break;
 		}
-	case PacketId::CHAT_GLOBAL:
+	case PacketType::CHAT_GLOBAL:
 		{
 			applied = ChatApplier->ApplyPacket(RecvPending, this);
 			break;
 		}
-	case PacketId::GAME_STATE:
+	case PacketType::GAME_STATE:
 		{
 			applied = GameApplier->ApplyPacket(RecvPending, this);
 			break;
 		}
-	case PacketId::SESSION_INFO:
-	case PacketId::SESSION_CONNECTED:
-	case PacketId::SESSION_DISCONNECTED:
+	case PacketType::SESSION_INFO:
+	case PacketType::SESSION_CONNECTED:
+	case PacketType::SESSION_DISCONNECTED:
 		{
 			applied = MiddleApplier->ApplyPacket(RecvPending, this);
 			break;
 		}
 	default:
 		{
-			UE_LOG(LogTemp, Warning, TEXT("패킷 id %i는 Applier에 의해 처리되지 않았습니다."), header.id);
+			UE_LOG(LogTemp, Warning, TEXT("패킷 type %i는 Applier에 의해 처리되지 않았습니다."), header.type);
 			break;
 		}
 	}
 	return applied;
+}
+
+uint8 ANetHandler::GenerateUniquePacketId()
+{
+	PacketUniqueId = (PacketUniqueId + 1) % UINT8_MAX;
+	if (PacketUniqueId == 0) PacketUniqueId++;
+	return PacketUniqueId;
 }
 
 void ANetHandler::InitGameHostType()
@@ -201,22 +201,28 @@ void ANetHandler::Tick_UEClient(float DeltaTime)
 void ANetHandler::RegisterSend_UEClient(float DeltaTime)
 {
 	APlayerPawn* Player = Cast<APlayerPawn>(UGameplayStatics::GetPlayerPawn(this, 0));
-	TSharedPtr<SendBuffer> writeBuf = nullptr;
-	while (!writeBuf) writeBuf = Session->BufManager->SendPool->PopBuffer();
-	FillPacketSenderTypeHeader(writeBuf);
-
 	SD_GameInputHistory* inputHistory = new SD_GameInputHistory(Player->GetGameInputPendings());
 
-	Serializer->Serialize((SD_Data*)inputHistory);
-	Serializer->WriteDataToBuffer(writeBuf);
 	Serializer->Clear();
+	Serializer->Serialize((SD_Data*)inputHistory);
 
-	Player->ClearGameInputPendings(); // 기존 인풋 히스토리를 전부 Flush한다
+	TSharedPtr<SendBuffer> writeBuf = nullptr;
+	while (!writeBuf) writeBuf = Session->BufManager->SendPool->PopBuffer();
 
+	// NOTE: 클라이언트는 Scatter Gather을 사용하지 않고 단일 패킷으로 보낸다
+	// 1) 서버만큼 방대한 데이터를 보낼 필요가 없기도 하고
+	// 2) Scatter-Gather 사용시 서버에 막대한 부담이 가해지기 때문이다
+	FillPacketSenderTypeHeader(writeBuf);
+	((PacketHeader*)(writeBuf->GetBuf()))->uniqueId = GenerateUniquePacketId();
+	((PacketHeader*)(writeBuf->GetBuf()))->packetOrder = 0;
+	((PacketHeader*)(writeBuf->GetBuf()))->fragmentCount = 1;
 	((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();
 	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_ALLOW_MULTIPLE_PER_TICK;
-	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_INPUT;
+	((PacketHeader*)(writeBuf->GetBuf()))->type = PacketType::GAME_INPUT;
+	Serializer->WriteDataToBuffer(writeBuf, Serializer->Array->GetData(), Serializer->Array->Num());
 	Session->PushSendQueue(writeBuf);
+
+	Player->ClearGameInputPendings(); // 사용이 끝난 인풋 히스토리를 전부 Flush한다
 }
 
 void ANetHandler::GetPendingBuffer_UEClient(float DeltaTime)
@@ -262,7 +268,6 @@ void ANetHandler::ProcessRecv_UEClient(float DeltaTime)
 	}
 	if (RecvPending)
 	{
-		//PacketDebug(DeltaTime);
 		if (!DistributePendingPacket())
 		{
 			UE_LOG(LogTemp, Error, TEXT("수신 완료한 패킷 내용을 적용하는 과정에서 문제가 발생했습니다, 해당 패킷 내용은 무시됩니다."));
@@ -391,10 +396,6 @@ void ANetHandler::ProcessRecv_UEServer(float DeltaTime)
 
 void ANetHandler::RegisterSend_UEServer(float DeltaTime)
 {
-	TSharedPtr<SendBuffer> writeBuf = nullptr;
-	while (!writeBuf) writeBuf = GetSessionShared()->BufManager->SendPool->PopBuffer();
-	GetSerializerShared()->Clear();
-
 	SD_GameState* gameStateData = new SD_GameState(
 		GetWorld()->GetGameState(),
 		GetRovenhellGameInstance()->TickCounter->GetTick(),
@@ -410,11 +411,30 @@ void ANetHandler::RegisterSend_UEServer(float DeltaTime)
 		gameStateData->AddPlayerPhysics(playerPhysicsData);
 	}
 
-	GetSerializerShared()->Serialize((SD_Data*)gameStateData);
-	GetSerializerShared()->WriteDataToBuffer(writeBuf);
-	FillPacketSenderTypeHeader(writeBuf);
-	((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();
-	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::LOGIC_EVENT;
-	((PacketHeader*)(writeBuf->GetBuf()))->id = PacketId::GAME_STATE;
-	GetSessionShared()->PushSendQueue(writeBuf);
+	Serializer->Clear();
+	Serializer->Serialize((SD_Data*)gameStateData);
+	uint8 uniqueId = GenerateUniquePacketId();
+	uint8 totalFragmentCount = (uint8)FMath::CeilToInt((float)Serializer->Array->Num() / (NetBufferManager::SendBufferSize - sizeof(PacketHeader)));
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("전송 패킷 갯수: %i"), totalFragmentCount)); //////// TODO DEBUG
+
+	int packetCount = 0;
+	for (int i = 0; i < Serializer->Array->Num(); i += NetBufferManager::SendBufferSize - sizeof(PacketHeader))
+	{
+		TSharedPtr<SendBuffer> writeBuf = nullptr;
+		while (!writeBuf) writeBuf = Session->BufManager->SendPool->PopBuffer();
+
+		FillPacketSenderTypeHeader(writeBuf);
+		((PacketHeader*)(writeBuf->GetBuf()))->uniqueId = uniqueId;
+		((PacketHeader*)(writeBuf->GetBuf()))->packetOrder = packetCount;
+		((PacketHeader*)(writeBuf->GetBuf()))->fragmentCount = totalFragmentCount;
+		((PacketHeader*)(writeBuf->GetBuf()))->senderId = Session->GetSessionId();
+		((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::LOGIC_EVENT;
+		((PacketHeader*)(writeBuf->GetBuf()))->type = PacketType::GAME_STATE;
+
+		if (Serializer->WriteDataToBuffer(writeBuf, Serializer->Array->GetData() + i, NetBufferManager::SendBufferSize - sizeof(PacketHeader)))
+		{
+			packetCount++;
+			Session->PushSendQueue(writeBuf);
+		}
+	}
 }

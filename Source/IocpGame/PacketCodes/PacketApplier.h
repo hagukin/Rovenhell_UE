@@ -29,4 +29,7 @@ public:
 protected:
 	TSharedPtr<NetSession> Session = nullptr;
 	UGameInstance* GameInstance = nullptr;
+
+	/*UEClient*/
+	TMap<uint8, FArchive> PacketFragments; // 서버의 데이터를 Gather하기 위해 사용
 };

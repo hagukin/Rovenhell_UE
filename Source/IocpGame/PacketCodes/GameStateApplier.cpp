@@ -45,6 +45,8 @@ bool GameStateApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, ANetHandler* n
 
 bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
 {
+	return false; /////////////// DEBUG
+
 	// 역직렬화
 	netHandler->GetDeserializerShared()->Clear();
 	SD_GameState* gameState = new SD_GameState();
