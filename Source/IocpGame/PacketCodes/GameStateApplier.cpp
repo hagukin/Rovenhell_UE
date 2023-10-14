@@ -45,21 +45,26 @@ bool GameStateApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, ANetHandler* n
 
 bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
 {
-	return false; /////////////// DEBUG
+	// 패킷 순서 검증 (TCP지만 만일의 사태를 대비)
+	if (!netHandler->GetDeserializerShared()->IsCorrectPacket((PacketHeader*)(packet->GetBuf())))
+	{
+		netHandler->GetDeserializerShared()->Clear(); // 그동안 수신한 버퍼 Fragment 삭제
+		return true;
+	}
 
-	// 역직렬화
-	netHandler->GetDeserializerShared()->Clear();
-	SD_GameState* gameState = new SD_GameState();
+	// 버퍼 복사
 	netHandler->GetDeserializerShared()->ReadDataFromBuffer(packet);
-	netHandler->GetDeserializerShared()->Deserialize((SD_Data*)gameState);
 
-	// 서버 틱과 동기화
-	Cast<URovenhellGameInstance>(GameInstance)->TickCounter->SetServerTick_UEClient(gameState->Tick);
-
-	// 데이터 처리
-	ApplyPhysicsAndSyncPlayers_UEClient(gameState, netHandler);
-	// TODO: GameState 내의 다른 데이터들도 처리
-
+	// 마지막 패킷 fragment일 경우
+	if (netHandler->GetDeserializerShared()->SetPacketInfo((PacketHeader*)(packet->GetBuf())))
+	{
+		SD_GameState* gameState = new SD_GameState();
+		netHandler->GetDeserializerShared()->Deserialize((SD_Data*)gameState);
+		Cast<URovenhellGameInstance>(GameInstance)->TickCounter->SetServerTick_UEClient(gameState->Tick); // 서버 틱과 동기화
+		ApplyPhysicsAndSyncPlayers_UEClient(gameState, netHandler); // 데이터 처리
+		// TODO: GameState 내의 다른 데이터들도 처리
+		netHandler->GetDeserializerShared()->Clear(); // 처리를 완료한 버퍼 Fragment 삭제
+	}
 	return true;
 }
 
