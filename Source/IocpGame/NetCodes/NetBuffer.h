@@ -41,6 +41,8 @@ public:
 
 	void MoveWriteCursor(int32 bytes); // bytes 바이트 만큼 커서를 뒤로 이동한다.
 	void SetSize(uint32 size); // 버퍼 크기가 Write() 이외의 방법으로 외부에서 변경되었을 때 BufferSize를 최신화하기 위해 사용한다. Recv() 이후 사용한다.
+
+	PacketHeader* GetHeader(); // 헤더가 있음을 가정한다
 protected:
 	const uint32 CAPACITY;
 	uint32 BufferSize = 0;

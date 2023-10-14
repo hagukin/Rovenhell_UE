@@ -124,7 +124,7 @@ bool NetSession::IsSendQueueEmpty()
 
 bool NetSession::PushRecvQueue(TSharedPtr<RecvBuffer> recvBuffer)
 {
-	uint64 sessionId = ((PacketHeader*)recvBuffer->GetBuf())->senderId;
+	uint64 sessionId = recvBuffer->GetHeader()->senderId;
 	while (!Receiver->Lock.TryLock());
 	if (!Receiver->PendingClientBuffers.Contains(sessionId))
 	{
@@ -174,7 +174,7 @@ bool NetSession::Recv(TSharedPtr<RecvBuffer> recvBuffer)
 		{
 			if (!receivedHeader)
 			{
-				bytesToRead = (int32)((PacketHeader*)(recvBuffer->GetBuf()))->size - sizeof(PacketHeader);
+				bytesToRead = (int32)recvBuffer->GetHeader()->size - sizeof(PacketHeader);
 				receivedHeader = true;
 			}
 		}

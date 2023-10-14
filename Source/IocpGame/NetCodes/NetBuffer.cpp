@@ -58,6 +58,12 @@ void NetBuffer::SetSize(uint32 size)
 	BufferSize = size;
 }
 
+PacketHeader* NetBuffer::GetHeader()
+{
+	// 헤더를 가지고 있다고 가정
+	return reinterpret_cast<PacketHeader*>(Buffer);
+}
+
 void NetBuffer::Init()
 {
 	Buffer = new T_BYTE[CAPACITY];

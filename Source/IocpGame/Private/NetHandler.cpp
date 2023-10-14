@@ -94,6 +94,8 @@ void ANetHandler::Init()
 	else if (HostType == HostTypeEnum::LOGIC_SERVER || HostType == HostTypeEnum::LOGIC_SERVER_HEADLESS)
 	{
 		port = 8888;
+		// TODO: HEADLESS 분리
+		//GEngine->GameViewport->bDisableWorldRendering = 1;
 	}
 	
 	NetAddress serverAddr(TEXT("127.0.0.1"), port); //////// TESTING
@@ -126,13 +128,13 @@ uint32 ANetHandler::GetLastProcessedInputTickForSession(uint64 sessionId)
 
 void ANetHandler::FillPacketSenderTypeHeader(TSharedPtr<SendBuffer> buffer)
 {
-	((PacketHeader*)(buffer->GetBuf()))->senderType = HostType;
+	buffer->GetHeader()->senderType = HostType;
 }
 
 bool ANetHandler::DistributePendingPacket()
 {
 	// RecvPending 버퍼를 적절한 Applier로 전달한다
-	const PacketHeader header = *((PacketHeader*)(RecvPending->GetBuf()));
+	const PacketHeader header = *RecvPending->GetHeader();
 
 	bool applied = false;
 	switch (header.type)
@@ -213,12 +215,12 @@ void ANetHandler::RegisterSend_UEClient(float DeltaTime)
 	// 1) 서버만큼 방대한 데이터를 보낼 필요가 없기도 하고
 	// 2) Scatter-Gather 사용시 서버에 막대한 부담이 가해지기 때문이다
 	FillPacketSenderTypeHeader(writeBuf);
-	((PacketHeader*)(writeBuf->GetBuf()))->uniqueId = GenerateUniquePacketId();
-	((PacketHeader*)(writeBuf->GetBuf()))->packetOrder = 0;
-	((PacketHeader*)(writeBuf->GetBuf()))->fragmentCount = 1;
-	((PacketHeader*)(writeBuf->GetBuf()))->senderId = GetSessionShared()->GetSessionId();
-	((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::CLIENT_ALLOW_MULTIPLE_PER_TICK;
-	((PacketHeader*)(writeBuf->GetBuf()))->type = PacketType::GAME_INPUT;
+	writeBuf->GetHeader()->uniqueId = GenerateUniquePacketId();
+	writeBuf->GetHeader()->packetOrder = 0;
+	writeBuf->GetHeader()->fragmentCount = 1;
+	writeBuf->GetHeader()->senderId = GetSessionShared()->GetSessionId();
+	writeBuf->GetHeader()->protocol = PacketProtocol::CLIENT_ALLOW_MULTIPLE_PER_TICK;
+	writeBuf->GetHeader()->type = PacketType::GAME_INPUT;
 	Serializer->WriteDataToBuffer(writeBuf, Serializer->Array->GetData(), Serializer->Array->Num());
 	Session->PushSendQueue(writeBuf);
 
@@ -246,7 +248,7 @@ void ANetHandler::ProcessRecv_UEClient(float DeltaTime)
 		GetPendingBuffer_UEClient(DeltaTime);
 		if (!RecvPending) break; // 모든 세션으로부터 어떠한 대기 패킷도 없을 경우
 
-		uint16 recvBufferProtocol = ((PacketHeader*)RecvPending->GetBuf())->protocol;
+		uint16 recvBufferProtocol = RecvPending->GetHeader()->protocol;
 		switch (recvBufferProtocol)
 		{
 			case PacketProtocol::LOGIC_EVENT:
@@ -320,7 +322,7 @@ void ANetHandler::GetPendingBuffer_UEServer(float DeltaTime)
 			RecvPendings.Enqueue(AddToRecvPendings);
 
 			// 1틱 당 복수 처리가 허용된 패킷의 경우에는 계속 꺼내온다
-			if (((PacketHeader*)(AddToRecvPendings->GetBuf()))->protocol == PacketProtocol::CLIENT_ONCE_PER_TICK)
+			if (AddToRecvPendings->GetHeader()->protocol == PacketProtocol::CLIENT_ONCE_PER_TICK)
 				break;
 		}
 	}
@@ -349,8 +351,8 @@ void ANetHandler::ProcessRecv_UEServer(float DeltaTime)
 		{
 			RecvPendings.Dequeue(RecvPending);
 
-			uint64 sessionId = ((PacketHeader*)RecvPending->GetBuf())->senderId;
-			uint16 recvBufferProtocol = ((PacketHeader*)RecvPending->GetBuf())->protocol;
+			uint64 sessionId = RecvPending->GetHeader()->senderId;
+			uint16 recvBufferProtocol = RecvPending->GetHeader()->protocol;
 			switch (recvBufferProtocol)
 			{
 				// 틱에 여러 번 처리 가능
@@ -407,15 +409,15 @@ void ANetHandler::RegisterSend_UEServer(float DeltaTime)
 	// TODO: 변경된 플레이어에 대해서만 정보를 보내는 것으로 패킷 크기 축소 가능
 	for (const auto& element : GetRovenhellGameInstance()->GetPlayers())
 	{
-		SD_PawnPhysics* playerPhysicsData = new SD_PawnPhysics(element.Key, element.Value.Get());
-		gameStateData->AddPlayerPhysics(playerPhysicsData);
+		gameStateData->AddPlayerPhysics(new SD_PawnPhysics(element.Key, element.Value.Get()));
 	}
 
+	// Scattering Packet
 	Serializer->Clear();
 	Serializer->Serialize((SD_Data*)gameStateData);
 	uint8 uniqueId = GenerateUniquePacketId();
 	uint8 totalFragmentCount = (uint8)FMath::CeilToInt((float)Serializer->Array->Num() / (NetBufferManager::SendBufferSize - sizeof(PacketHeader)));
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("전송 패킷 갯수: %i"), totalFragmentCount)); //////// TODO DEBUG
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("전송 패킷 갯수: %i"), totalFragmentCount)); // TESTING
 
 	int packetCount = 0;
 	for (int i = 0; i < Serializer->Array->Num(); i += NetBufferManager::SendBufferSize - sizeof(PacketHeader))
@@ -424,12 +426,12 @@ void ANetHandler::RegisterSend_UEServer(float DeltaTime)
 		while (!writeBuf) writeBuf = Session->BufManager->SendPool->PopBuffer();
 
 		FillPacketSenderTypeHeader(writeBuf);
-		((PacketHeader*)(writeBuf->GetBuf()))->uniqueId = uniqueId;
-		((PacketHeader*)(writeBuf->GetBuf()))->packetOrder = packetCount;
-		((PacketHeader*)(writeBuf->GetBuf()))->fragmentCount = totalFragmentCount;
-		((PacketHeader*)(writeBuf->GetBuf()))->senderId = Session->GetSessionId();
-		((PacketHeader*)(writeBuf->GetBuf()))->protocol = PacketProtocol::LOGIC_EVENT;
-		((PacketHeader*)(writeBuf->GetBuf()))->type = PacketType::GAME_STATE;
+		writeBuf->GetHeader()->uniqueId = uniqueId;
+		writeBuf->GetHeader()->packetOrder = packetCount;
+		writeBuf->GetHeader()->fragmentCount = totalFragmentCount;
+		writeBuf->GetHeader()->senderId = Session->GetSessionId();
+		writeBuf->GetHeader()->protocol = PacketProtocol::LOGIC_EVENT;
+		writeBuf->GetHeader()->type = PacketType::GAME_STATE;
 
 		if (Serializer->WriteDataToBuffer(writeBuf, Serializer->Array->GetData() + i, NetBufferManager::SendBufferSize - sizeof(PacketHeader)))
 		{

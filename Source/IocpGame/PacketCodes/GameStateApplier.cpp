@@ -46,7 +46,7 @@ bool GameStateApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, ANetHandler* n
 bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
 {
 	// 패킷 순서 검증 (TCP지만 만일의 사태를 대비)
-	if (!netHandler->GetDeserializerShared()->IsCorrectPacket((PacketHeader*)(packet->GetBuf())))
+	if (!netHandler->GetDeserializerShared()->IsCorrectPacket(packet->GetHeader()))
 	{
 		netHandler->GetDeserializerShared()->Clear(); // 그동안 수신한 버퍼 Fragment 삭제
 		return true;
@@ -56,7 +56,7 @@ bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, ANetH
 	netHandler->GetDeserializerShared()->ReadDataFromBuffer(packet);
 
 	// 마지막 패킷 fragment일 경우
-	if (netHandler->GetDeserializerShared()->SetPacketInfo((PacketHeader*)(packet->GetBuf())))
+	if (netHandler->GetDeserializerShared()->SetPacketInfo(packet->GetHeader()))
 	{
 		SD_GameState* gameState = new SD_GameState();
 		netHandler->GetDeserializerShared()->Deserialize((SD_Data*)gameState);

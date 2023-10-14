@@ -22,7 +22,7 @@ bool MiddlemanPacketApplier::Init(TSharedPtr<NetSession> session, UGameInstance*
 
 bool MiddlemanPacketApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, class ANetHandler* netHandler)
 {
-    const PacketHeader header = *((PacketHeader*)(packet->GetBuf()));
+    const PacketHeader header = *(packet->GetHeader());
 	bool applied = false;
 	switch (header.type)
 	{
@@ -60,7 +60,7 @@ bool MiddlemanPacketApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, class AN
 bool MiddlemanPacketApplier::ApplySessionInfo(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
 {
     // 호스트 세션 id 초기화
-    uint64 hostSessionId = ((PacketHeader*)(packet->GetBuf()))->senderId;
+    uint64 hostSessionId = packet->GetHeader()->senderId;
     Session->SetSessionId(hostSessionId);
     UE_LOG(LogTemp, Log, TEXT("이 세션의 id가 %i로 설정되었습니다."), hostSessionId);
 
@@ -97,7 +97,7 @@ bool MiddlemanPacketApplier::ApplySessionInfo(TSharedPtr<RecvBuffer> packet, ANe
 bool MiddlemanPacketApplier::ApplySessionConnection(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
 {
     // 클라이언트 세션 추가
-    uint64 clientSessionId = ((PacketHeader*)(packet->GetBuf()))->senderId;
+    uint64 clientSessionId = packet->GetHeader()->senderId;
     GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("%i번 클라이언트 세션 연결"), clientSessionId));
 
     // 플레이어 폰 추가
@@ -114,7 +114,7 @@ bool MiddlemanPacketApplier::ApplySessionConnection(TSharedPtr<RecvBuffer> packe
 bool MiddlemanPacketApplier::ApplySessionDisconnection(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
 {
     // 클라이언트 세션 추가
-    uint64 clientSessionId = ((PacketHeader*)(packet->GetBuf()))->senderId;
+    uint64 clientSessionId = packet->GetHeader()->senderId;
     GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("%i번 클라이언트 세션 연결 해제"), clientSessionId));
 
     // 플레이어 폰 삭제

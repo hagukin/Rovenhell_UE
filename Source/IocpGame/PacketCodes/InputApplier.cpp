@@ -53,7 +53,7 @@ bool InputApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, class ANe
 	SD_GameInputHistory* inputData = new SD_GameInputHistory();
 	netHandler->GetDeserializerShared()->ReadDataFromBuffer(packet);
 	netHandler->GetDeserializerShared()->Deserialize((SD_Data*)inputData);
-	uint64 sessionId = ((PacketHeader*)packet->GetBuf())->senderId;
+	uint64 sessionId = packet->GetHeader()->senderId;
 
 	// 모든 플레이어들의 인풋 처리
 	for (const SD_GameInput& input : inputData->GameInputs)
