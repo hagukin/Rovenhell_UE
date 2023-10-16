@@ -101,7 +101,17 @@ void UNetPlayerMovementComponent::ApplyMovement(FVector FacingDirection, float I
 {
     APlayerPawn* Player = GetPlayer();
     if (!Player) return;
-    Player->SetActorLocation(Player->GetActorLocation() + (FacingDirection.GetClampedToMaxSize(1.0f) * PlayerSpeed * InputDeltaTime), false, nullptr, ETeleportType::None);
+    FHitResult hitResult;
+    FVector moveVector = FacingDirection.GetClampedToMaxSize(1.0f) * PlayerSpeed * InputDeltaTime;
+    if (!moveVector.IsNearlyZero())
+    {
+        FHitResult Hit;
+        SafeMoveUpdatedComponent(moveVector, UpdatedComponent->GetComponentRotation(), true, Hit);
+        if (Hit.IsValidBlockingHit())
+        {
+            SlideAlongSurface(moveVector, 1.f - Hit.Time, Hit.Normal, Hit);
+        }
+    }
 }
 
 void UNetPlayerMovementComponent::ApplyRotation(FVector FacingDirection, float InputDeltaTime)
