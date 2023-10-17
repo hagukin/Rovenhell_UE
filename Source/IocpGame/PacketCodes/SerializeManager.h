@@ -34,6 +34,6 @@ public:
 	TUniquePtr<TArray<uint8>> Array;
 
 private:
-	uint8 ReceivedPacketId; // 현재 수신 중인 패킷의 UniqueId
-	TMap<uint8, bool> ReceivedFragments; // 수신한 패킷 조각들
+	uint8 ReceivedPacketId = 0; // 현재 수신 중인 패킷의 UniqueId
+	uint8 LasReceivedFragmentsNumber = 0; // 수신한 패킷 조각들; 0이면 한 조각도 수신받지 못한 상태를 의미
 };

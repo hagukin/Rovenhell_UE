@@ -48,21 +48,24 @@ bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, ANetH
 	// 패킷 순서 검증 (TCP지만 만일의 사태를 대비)
 	if (!netHandler->GetDeserializerShared()->IsCorrectPacket(packet->GetHeader()))
 	{
+		netHandler->GetDeserializerShared()->ResetPacketInfo();
 		netHandler->GetDeserializerShared()->Clear(); // 그동안 수신한 버퍼 Fragment 삭제
 		return true;
 	}
 
 	// 버퍼 복사
+	netHandler->GetDeserializerShared()->SetPacketInfo(packet->GetHeader());
 	netHandler->GetDeserializerShared()->ReadDataFromBuffer(packet);
 
-	// 마지막 패킷 fragment일 경우
-	if (netHandler->GetDeserializerShared()->SetPacketInfo(packet->GetHeader()))
+	// 마지막 fragment일 경우
+	if (packet->GetHeader()->packetOrder == packet->GetHeader()->fragmentCount)
 	{
 		SD_GameState* gameState = new SD_GameState();
 		netHandler->GetDeserializerShared()->Deserialize((SD_Data*)gameState);
 		Cast<URovenhellGameInstance>(GameInstance)->TickCounter->SetServerTick_UEClient(gameState->Tick); // 서버 틱과 동기화
 		ApplyPhysicsAndSyncPlayers_UEClient(gameState, netHandler); // 데이터 처리
 		// TODO: GameState 내의 다른 데이터들도 처리
+		netHandler->GetDeserializerShared()->ResetPacketInfo();
 		netHandler->GetDeserializerShared()->Clear(); // 처리를 완료한 버퍼 Fragment 삭제
 	}
 	return true;

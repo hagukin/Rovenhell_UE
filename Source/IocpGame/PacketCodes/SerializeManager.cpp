@@ -67,15 +67,14 @@ bool SerializeManager::ReadDataFromBuffer(TSharedPtr<RecvBuffer> readBuffer)
 void SerializeManager::ResetPacketInfo()
 {
 	ReceivedPacketId = 0;
-	ReceivedFragments.Reset();
+	LasReceivedFragmentsNumber = 0;
 }
 
 bool SerializeManager::IsCorrectPacket(const PacketHeader* packetHeader)
 {
-	if (ReceivedPacketId != 0 && ReceivedPacketId != packetHeader->uniqueId)
+	if (LasReceivedFragmentsNumber + 1 != packetHeader->packetOrder)
 	{
-		UE_LOG(LogTemp, Error, TEXT("패킷 로스가 발생했거나, 혹은 알 수 없는 이유로 패킷 순서가 뒤바뀌었습니다! 기존 수신하던 패킷 fragment들은 삭제됩니다."));
-		ResetPacketInfo();
+		UE_LOG(LogTemp, Error, TEXT("패킷 로스가 발생했거나, 혹은 알 수 없는 이유로 패킷 순서가 뒤바뀌었습니다!"));
 		return false;
 	}
 	return true;
@@ -84,14 +83,6 @@ bool SerializeManager::IsCorrectPacket(const PacketHeader* packetHeader)
 bool SerializeManager::SetPacketInfo(const PacketHeader* packetHeader)
 {
 	ReceivedPacketId = packetHeader->uniqueId;
-	ReceivedFragments.Add(packetHeader->packetOrder, true);
-
-	// TCP 패킷이므로 순서 보장
-	if (packetHeader->packetOrder == packetHeader->fragmentCount - 1) // 인덱스 == size - 1
-	{
-		// 마지막 패킷 수신 완료
-		ResetPacketInfo();
-		return true;
-	}
-	return false;
+	LasReceivedFragmentsNumber = packetHeader->packetOrder;
+	return true;
 }

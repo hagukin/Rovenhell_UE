@@ -7,8 +7,8 @@
 
 struct PacketHeader
 {
-	uint8 uniqueId; // 고유 식별자
-	uint8 packetOrder; // 이 패킷 조각이 전체 데이터에서 몇번째인지
+	uint8 uniqueId; // 고유 식별자 (1 이상)
+	uint8 packetOrder; // 이 패킷 조각이 전체 데이터에서 몇번째인지 (1부터 시작)
 	uint8 fragmentCount; // 전체 데이터가 몇 개의 조각들로 구성되어 있는지
 	uint16 size; // 헤더를 포함한 이 단일 패킷(fragment)의 총 크기
 	uint16 senderType; // 발신자 타입 (ExecType)

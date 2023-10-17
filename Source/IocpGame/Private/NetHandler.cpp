@@ -216,7 +216,7 @@ void ANetHandler::RegisterSend_UEClient(float DeltaTime)
 	// 2) Scatter-Gather 사용시 서버에 막대한 부담이 가해지기 때문이다
 	FillPacketSenderTypeHeader(writeBuf);
 	writeBuf->GetHeader()->uniqueId = GenerateUniquePacketId();
-	writeBuf->GetHeader()->packetOrder = 0;
+	writeBuf->GetHeader()->packetOrder = 1;
 	writeBuf->GetHeader()->fragmentCount = 1;
 	writeBuf->GetHeader()->senderId = GetSessionShared()->GetSessionId();
 	writeBuf->GetHeader()->protocol = PacketProtocol::CLIENT_ALLOW_MULTIPLE_PER_TICK;
@@ -419,7 +419,7 @@ void ANetHandler::RegisterSend_UEServer(float DeltaTime)
 	uint8 totalFragmentCount = (uint8)FMath::CeilToInt((float)Serializer->Array->Num() / (NetBufferManager::SendBufferSize - sizeof(PacketHeader)));
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("전송 패킷 갯수: %i"), totalFragmentCount)); // TESTING
 
-	int packetCount = 0;
+	int packetCount = 1;
 	for (int i = 0; i < Serializer->Array->Num(); i += NetBufferManager::SendBufferSize - sizeof(PacketHeader))
 	{
 		TSharedPtr<SendBuffer> writeBuf = nullptr;
