@@ -41,28 +41,45 @@ public:
 class SD_ActorPhysics : SD_Data
 {
 public:
+	void SetDataFromTransform(const FTransform& transform)
+	{
+		LocX = transform.GetLocation().X;
+		LocY = transform.GetLocation().Y;
+		LocZ = transform.GetLocation().Z;
+
+		RotX = transform.GetRotation().Vector().X;
+		RotY = transform.GetRotation().Vector().Y;
+		RotZ = transform.GetRotation().Vector().Z;
+		return;
+	}
+
+	FTransform GetTransformFromData() const
+	{
+		FTransform transform;
+		transform.SetLocation(FVector(LocX, LocY, LocZ));
+		transform.SetRotation(FVector(RotX, RotY, RotZ).ToOrientationQuat());
+		return transform;
+	}
+
 	SD_ActorPhysics() {};
 	SD_ActorPhysics(AActor* actor)
 	{
-		Transform = actor->GetTransform();
-		XVelocity = actor->GetRootComponent()->ComponentVelocity.X;
-		YVelocity = actor->GetRootComponent()->ComponentVelocity.Y;
-		ZVelocity = actor->GetRootComponent()->ComponentVelocity.Z;
+		SetDataFromTransform(actor->GetTransform());
 	}
-	SD_ActorPhysics(const FTransform& transform, const FVector& velocity)
+	SD_ActorPhysics(const FTransform& transform)
 	{
-		Transform = transform;
-		XVelocity = velocity.X;
-		YVelocity = velocity.Y;
-		ZVelocity = velocity.Z;
+		SetDataFromTransform(transform);
 	}
 
 	friend FArchive& operator<<(FArchive& Archive, SD_ActorPhysics& Data)
 	{
-		Archive << Data.Transform;
-		Archive << Data.XVelocity;
-		Archive << Data.YVelocity;
-		Archive << Data.ZVelocity;
+		Archive << Data.LocX;
+		Archive << Data.LocY;
+		Archive << Data.LocZ;
+
+		Archive << Data.RotX;
+		Archive << Data.RotY;
+		Archive << Data.RotZ;
 
 		return Archive;
 	}
@@ -71,16 +88,22 @@ public:
 	void Deserialize(FMemoryReader& reader) override { reader << *this; }
 
 public:
-	FTransform Transform;
-	double XVelocity = 0.f; // 대상 액터의 RootComponent의 ComponentVelocity 사용; LinearVelocity;
-	double YVelocity = 0.f;
-	double ZVelocity = 0.f;
+	float LocX, LocY, LocZ;
+	float RotX, RotY, RotZ;
 };
 
 // InputAction과 InputActionValue에 대한 정보를 담는다
 class SD_GameInput : SD_Data
 {
 public:
+	FORCEINLINE bool IsNotZero(float x)
+	{
+		return x > KINDA_SMALL_NUMBER || x < KINDA_SMALL_NUMBER * -1;
+	}
+	FORCEINLINE bool GetSignBit(float x)
+	{
+		return x < -KINDA_SMALL_NUMBER;
+	}
 	SD_GameInput() {}
 	SD_GameInput(ActionTypeEnum actionType, const FInputActionValue& inputValue, float deltaTime, uint32 tick)
 	{
@@ -90,28 +113,29 @@ public:
 		switch (inputValue.GetValueType())
 		{
 			case EInputActionValueType::Axis1D:
-				{
-					X = inputValue.Get<float>();
-					break;
-				}
+			{
+				X = IsNotZero(inputValue.Get<float>());
+				XSign = GetSignBit(inputValue.Get<float>());
+				break;
+			}
 			case EInputActionValueType::Axis2D:
-				{
-					X = inputValue.Get<FVector2D>().X;
-					Y = inputValue.Get<FVector2D>().Y;
-					break;
-				}
+			{
+				X = IsNotZero(inputValue.Get<float>());
+				XSign = GetSignBit(inputValue.Get<float>());
+				Y = IsNotZero(inputValue.Get<FVector2D>().Y);
+				YSign = GetSignBit(inputValue.Get<FVector2D>().Y);
+				break;
+			}
 			case EInputActionValueType::Axis3D:
-				{
-					X = inputValue.Get<FVector>().X;
-					Y = inputValue.Get<FVector>().Y;
-					Z = inputValue.Get<FVector>().Z;
-					break;
-				}
-			default:
-				{
-					UE_LOG(LogTemp, Error, TEXT("알 수 없는 InputActionValueType입니다!"));
-					break;
-				}
+			{
+				X = IsNotZero(inputValue.Get<float>());
+				XSign = GetSignBit(inputValue.Get<float>());
+				Y = IsNotZero(inputValue.Get<FVector2D>().Y);
+				YSign = GetSignBit(inputValue.Get<FVector2D>().Y);
+				Z = IsNotZero(inputValue.Get<FVector>().Z);
+				ZSign = GetSignBit(inputValue.Get<FVector>().Z);
+				break;
+			}
 		}
 	}
 
@@ -121,6 +145,9 @@ public:
 		Archive << Data.X;
 		Archive << Data.Y;
 		Archive << Data.Z;
+		Archive << Data.XSign;
+		Archive << Data.YSign;
+		Archive << Data.ZSign;
 		Archive << Data.DeltaTime;
 		Archive << Data.Tick;
 		return Archive;
@@ -131,9 +158,12 @@ public:
 
 public:
 	uint8 ActionType = ActionTypeEnum::UNDEFINED;
-	double X = 0.0f;
-	double Y = 0.0f;
-	double Z = 0.0f;
+	bool X = 0;
+	bool Y = 0;
+	bool Z = 0;
+	bool XSign = 0; // 0: 양수
+	bool YSign = 0;
+	bool ZSign = 0;
 	float DeltaTime = 0.0f; // 서버측 재연산을 위해 필요한 값
 	uint32 Tick = 0; // 이 인풋이 발생한 시점; 인풋을 발생시킨 호스트의 로컬 틱값으로 표현한다.
 };
@@ -153,7 +183,7 @@ public:
 		if (Archive.IsLoading())
 		{
 			Archive << Data.InputCounts;
-			for (int32 i = 0; i < Data.InputCounts; ++i)
+			for (uint8 i = 0; i < Data.InputCounts; ++i)
 			{
 				Archive << Data.Temp;
 				Data.GameInputs.Add(Data.Temp);
@@ -163,7 +193,7 @@ public:
 		{
 			Data.InputCounts = Data.GameInputs.Num();
 			Archive << Data.InputCounts;
-			for (int32 i = 0; i < Data.InputCounts; ++i)
+			for (uint8 i = 0; i < Data.InputCounts; ++i)
 			{
 				Archive << Data.GameInputs[i];
 			}
@@ -176,7 +206,7 @@ public:
 
 public:
 	// 역직렬화 시 사용
-	int32 InputCounts = 0;
+	uint8 InputCounts = 0;
 	SD_GameInput Temp;
 
 	TArray<SD_GameInput> GameInputs;
@@ -189,8 +219,8 @@ class SD_PawnPhysics : public SD_ActorPhysics
 public:
 	SD_PawnPhysics() {}
 	virtual ~SD_PawnPhysics() {}
-	SD_PawnPhysics(uint64 sessionId, AActor* actor) : SD_ActorPhysics(actor) { SessionId = sessionId; }
-	SD_PawnPhysics(uint64 sessionId, const FTransform& transform, const FVector& velocity) : SD_ActorPhysics(transform, velocity)
+	SD_PawnPhysics(uint16 sessionId, AActor* actor) : SD_ActorPhysics(actor) { SessionId = sessionId; }
+	SD_PawnPhysics(uint16 sessionId, const FTransform& transform) : SD_ActorPhysics(transform)
 	{ 
 		SessionId = sessionId; 
 	}
@@ -203,7 +233,7 @@ public:
 	}
 
 public:
-	uint64 SessionId = 0;
+	uint16 SessionId = 0;
 };
 
 
@@ -213,7 +243,7 @@ class SD_PlayerState : SD_Data
 public:
 	SD_PlayerState() {}
 	virtual ~SD_PlayerState() {}
-	SD_PlayerState(uint64 sessionId, const AActor& actor) 
+	SD_PlayerState(uint16 sessionId, const AActor& actor) 
 	{
 		SessionId = sessionId;
 		// TODO: Hp 등 각종 정보 전달
@@ -229,7 +259,7 @@ public:
 	void Deserialize(FMemoryReader& reader) override { reader << *this; }
 
 public:
-	uint64 SessionId = 0;
+	uint16 SessionId = 0;
 };
 
 
@@ -238,12 +268,9 @@ class SD_GameState : SD_Data
 {
 public:
 	SD_GameState() {}
-	SD_GameState(AGameStateBase* gameState, uint32 tick, float deltaTime, const TMap<uint64, uint32>& processedTicks)
+	SD_GameState(AGameStateBase* gameState, uint32 gameStateTick)
 	{
-		Tick = tick;
-		DeltaTime = deltaTime;
-		ProcessedTicks = processedTicks;
-
+		GameStateTick = gameStateTick;
 		// NOTE: 콘텐츠 제작 시 동기화해야 하는 GameState 데이터들을 여기에서 복사해 저장
 		// 현재는 콘텐츠가 없는 관계로 비어있음
 
@@ -252,14 +279,13 @@ public:
 
 	friend FArchive& operator<<(FArchive& Archive, SD_GameState& Data)
 	{
-		Archive << Data.Tick;
-		Archive << Data.DeltaTime;
+		Archive << Data.GameStateTick;
 
 		if (Archive.IsLoading())
 		{
 			// 피직스
 			Archive << Data.UpdatedPlayerPhysicsCount;
-			for (uint32 i = 0; i < Data.UpdatedPlayerPhysicsCount; ++i)
+			for (uint16 i = 0; i < Data.UpdatedPlayerPhysicsCount; ++i)
 			{
 				Archive << Data.TempPhysics;
 				Data.UpdatedPlayerPhysics.Add(Data.TempPhysics);
@@ -267,21 +293,10 @@ public:
 
 			// 스테이트
 			Archive << Data.UpdatedPlayerStatesCount;
-			for (uint32 i = 0; i < Data.UpdatedPlayerStatesCount; ++i)
+			for (uint16 i = 0; i < Data.UpdatedPlayerStatesCount; ++i)
 			{
 				Archive << Data.TempState;
 				Data.UpdatedPlayerStates.Add(Data.TempState);
-			}
-
-			// ProcessedTicks
-			uint64 tempKey;
-			uint32 tempValue;
-			Archive << Data.ProcessedTicksCount;
-			for (uint32 i = 0; i < Data.ProcessedTicksCount; ++i)
-			{
-				Archive << tempKey;
-				Archive << tempValue;
-				Data.ProcessedTicks.Add(tempKey, tempValue);
 			}
 		}
 		else if (Archive.IsSaving())
@@ -289,7 +304,7 @@ public:
 			// 피직스
 			Data.UpdatedPlayerPhysicsCount = Data.UpdatedPlayerPhysics.Num();
 			Archive << Data.UpdatedPlayerPhysicsCount;
-			for (uint32 i = 0; i < Data.UpdatedPlayerPhysicsCount; ++i)
+			for (uint16 i = 0; i < Data.UpdatedPlayerPhysicsCount; ++i)
 			{
 				Archive << Data.UpdatedPlayerPhysics[i];
 			}
@@ -297,18 +312,9 @@ public:
 			// 스테이트
 			Data.UpdatedPlayerStatesCount = Data.UpdatedPlayerStates.Num();
 			Archive << Data.UpdatedPlayerStatesCount;
-			for (uint32 i = 0; i < Data.UpdatedPlayerStatesCount; ++i)
+			for (uint16 i = 0; i < Data.UpdatedPlayerStatesCount; ++i)
 			{
 				Archive << Data.UpdatedPlayerStates[i];
-			}
-
-			// ProcessedTicks
-			Data.ProcessedTicksCount = Data.ProcessedTicks.Num();
-			Archive << Data.ProcessedTicksCount;
-			for (auto& element : Data.ProcessedTicks)
-			{
-				Archive << element.Key;
-				Archive << element.Value;
 			}
 		}
 
@@ -330,19 +336,16 @@ public:
 	void Serialize(FMemoryWriter& writer) override { writer << *this; }
 	void Deserialize(FMemoryReader& reader) override { reader << *this; }
 public:
-	uint32 UpdatedPlayerPhysicsCount = 0;
+	uint16 UpdatedPlayerPhysicsCount = 0;
 	TArray<SD_PawnPhysics> UpdatedPlayerPhysics; // 접속한 모든 플레이어들의 물리 값; 현재 접속한 모든 플레이어들을 클라이언트와 동기화하기 위해서도 사용됨. 이는 패킷 크기 및 발송빈도를 줄이기 위함
 	SD_PawnPhysics TempPhysics;
 
-	uint32 UpdatedPlayerStatesCount = 0;
+	uint16 UpdatedPlayerStatesCount = 0;
 	TArray<SD_PlayerState> UpdatedPlayerStates; // State정보 갱신이 필요한 플레이어들의 State 값
 	SD_PlayerState TempState;
 	// TODO: 플레이어 id가 중복해서 들어가지 않게 피직스와 스테이트를 합치고, 대신 플레이어 접속 싱크를 맞추는 용도로 접속 플레이어 아이디를 담은 별도의 어레이를 만들어주면 지금보다 최적화 가능
 	// TODO: 플레이어 외의 액터들도 피직스 정보 싱크 맞도록 고유 id 부여
 
-	uint32 Tick = 0; // 서버 틱 (Real tick)
-	float DeltaTime = 0.0f;
-
+	uint32 GameStateTick = 0; // 이 게임스테이트 패킷이 담고있는 시점이 몇 틱인지 (서버)
 	uint32 ProcessedTicksCount = 0;
-	TMap<uint64, uint32> ProcessedTicks; // 클라가 발송한 인풋들 중 몇틱까지 처리를 완료했는지; 이때 틱 기준은 발송한 클라이언트의 로컬 틱이 기준이다
 };

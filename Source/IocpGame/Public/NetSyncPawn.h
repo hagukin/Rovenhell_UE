@@ -26,12 +26,15 @@ protected:
 public:	
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	
+	virtual void Puppetfy(); // 이 호스트가 조작하지 않는 폰의 경우 Puppetfy를 호출해주어야 한다
 
 	UActorPhysicsSyncComponent* GetPhysicsSyncComp() const { return PhysicsSyncComp; }
 	FORCEINLINE class ANetHandler* GetNetHandler() const { return NetHandler; }
 	void SetNetHandler(class ANetHandler* handler) { NetHandler = handler; }
-	bool SetOwnerSessionId(uint64 id);
-	uint64 GetOwnerSessionId(uint64 id);
+	bool SetOwnerSessionId(uint16 id);
+	uint64 GetOwnerSessionId(uint16 id);
+	bool IsPuppet() { return bIsPuppet; }
 
 public:
 	//// 컴포넌트
@@ -46,6 +49,7 @@ protected:
 	ANetHandler* NetHandler = nullptr;
 
 private:
+	bool bIsPuppet = false;
 	bool SessionIdInitialized = false;
-	uint64 OwnerSessionId = 0;
+	uint16 OwnerSessionId = 0;
 };

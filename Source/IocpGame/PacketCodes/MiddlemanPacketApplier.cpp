@@ -41,11 +41,7 @@ bool MiddlemanPacketApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, class AN
         }
         case PacketType::SESSION_DISCONNECTED:
         {
-            // 어떤 클라이언트의 연결 해제 알림은 로직서버를 포함한 모든 클라이언트가 수신함
-            // 이는 연결 성립 떄와 다르게, 클라이언트가 최대한 빠르게 해당 플레이어의 연결해제 소식을 아는 것이 더 유리하기 때문임.
-            // 로직 서버에서 후처리를 해야 하더라도, 그 정보는 해당 클라이언트와 무관하게 이후의 패킷으로 발송할 수 있기 때문에
-            // 굳이 로직 서버에서 후처리를 하는 것을 기다릴 필요가 없음.
-            applied = ApplySessionDisconnection(packet, netHandler); // TODO: 추후 필요시 호스트타입에 따라 다르게 처리
+            applied = ApplySessionDisconnection(packet, netHandler);
             break;
         }
 	    default:
@@ -60,7 +56,7 @@ bool MiddlemanPacketApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, class AN
 bool MiddlemanPacketApplier::ApplySessionInfo(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
 {
     // 호스트 세션 id 초기화
-    uint64 hostSessionId = packet->GetHeader()->senderId;
+    uint16 hostSessionId = packet->GetHeader()->senderId;
     Session->SetSessionId(hostSessionId);
     UE_LOG(LogTemp, Log, TEXT("이 세션의 id가 %i로 설정되었습니다."), hostSessionId);
 
@@ -97,7 +93,7 @@ bool MiddlemanPacketApplier::ApplySessionInfo(TSharedPtr<RecvBuffer> packet, ANe
 bool MiddlemanPacketApplier::ApplySessionConnection(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
 {
     // 클라이언트 세션 추가
-    uint64 clientSessionId = packet->GetHeader()->senderId;
+    uint16 clientSessionId = packet->GetHeader()->senderId;
     GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("%i번 클라이언트 세션 연결"), clientSessionId));
 
     // 플레이어 폰 추가
@@ -114,7 +110,7 @@ bool MiddlemanPacketApplier::ApplySessionConnection(TSharedPtr<RecvBuffer> packe
 bool MiddlemanPacketApplier::ApplySessionDisconnection(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
 {
     // 클라이언트 세션 추가
-    uint64 clientSessionId = packet->GetHeader()->senderId;
+    uint16 clientSessionId = packet->GetHeader()->senderId;
     GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("%i번 클라이언트 세션 연결 해제"), clientSessionId));
 
     // 플레이어 폰 삭제

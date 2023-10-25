@@ -109,7 +109,7 @@ void UNetPlayerMovementComponent::ApplyMovement(FVector FacingDirection, float I
         SafeMoveUpdatedComponent(moveVector, UpdatedComponent->GetComponentRotation(), true, Hit);
         if (Hit.IsValidBlockingHit())
         {
-            SlideAlongSurface(moveVector, 1.f - Hit.Time, Hit.Normal, Hit);
+            SlideAlongSurface(moveVector, 1.f - Hit.Time, Hit.Normal, Hit); // TODO: Time formula 점검
         }
     }
 }

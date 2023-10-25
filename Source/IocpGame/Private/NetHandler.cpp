@@ -107,25 +107,6 @@ void ANetHandler::Init()
 	if (Session->Start()) { UE_LOG(LogTemp, Log, TEXT("세션이 정상적으로 작동중입니다.")); }
 }
 
-void ANetHandler::UpdateLastProcessedInputTickForSession(uint64 sessionId, uint32 tick)
-{
-	if (!LastProcessedInputTick.Contains(sessionId))
-	{
-		LastProcessedInputTick.Add(sessionId, tick); // 없을 경우 새 항목 추가
-	}
-	LastProcessedInputTick[sessionId] = tick;
-}
-
-uint32 ANetHandler::GetLastProcessedInputTickForSession(uint64 sessionId)
-{
-	if (!LastProcessedInputTick.Contains(sessionId))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("%i번 세션의 LastProcessedInputTick 정보를 찾을 수 없습니다, 기본값으로 새로 추가합니다."), sessionId);
-		LastProcessedInputTick.Add(sessionId, 0); // 새 항목 추가
-	}
-	return LastProcessedInputTick[sessionId];
-}
-
 void ANetHandler::FillPacketSenderTypeHeader(TSharedPtr<SendBuffer> buffer)
 {
 	buffer->GetHeader()->senderType = HostType;
@@ -209,7 +190,11 @@ void ANetHandler::RegisterSend_UEClient(float DeltaTime)
 	Serializer->Serialize((SD_Data*)inputHistory);
 
 	TSharedPtr<SendBuffer> writeBuf = nullptr;
-	while (!writeBuf) writeBuf = Session->BufManager->SendPool->PopBuffer();
+	while (!writeBuf)
+	{
+		writeBuf = Session->BufManager->SendPool->PopBuffer();
+		if (!writeBuf) FPlatformProcess::YieldThread();
+	}
 
 	// NOTE: 클라이언트는 Scatter Gather을 사용하지 않고 단일 패킷으로 보낸다
 	// 1) 서버만큼 방대한 데이터를 보낼 필요가 없기도 하고
@@ -221,6 +206,7 @@ void ANetHandler::RegisterSend_UEClient(float DeltaTime)
 	writeBuf->GetHeader()->senderId = GetSessionShared()->GetSessionId();
 	writeBuf->GetHeader()->protocol = PacketProtocol::CLIENT_ALLOW_MULTIPLE_PER_TICK;
 	writeBuf->GetHeader()->type = PacketType::GAME_INPUT;
+	writeBuf->GetHeader()->senderTick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
 	Serializer->WriteDataToBuffer(writeBuf, Serializer->Array->GetData(), Serializer->Array->Num());
 	Session->PushSendQueue(writeBuf);
 
@@ -300,13 +286,12 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 	StartingNewGameTick_UEServer();
 	GetPendingBuffer_UEServer(DeltaTime);
 	ProcessRecv_UEServer(DeltaTime);
+	RegisterSend_UEServer(DeltaTime); // 매 틱마다 x개의 fragment를 발송한다; x는 DeltaTime에 비례한다, 즉 서버가 프레임이 떨어지면 그만큼 단일 틱에 여러 fragment를 보낸다
 
-	AccumulatedTickTime += DeltaTime;
-	if (AccumulatedTickTime >= DESIRED_SERVER_BROADCAST_TIME) // 인터벌마다 Send
-	{
-		AccumulatedTickTime = 0;
-		RegisterSend_UEServer(DeltaTime);
-	}
+	// TODO: 여러 fragment를 보내는 게 성능에 더 좋은지 테스트
+	// 이 방식대로면 만약 단일 패킷이 10 fragment일 경우 10 frame마다 1 패킷을 보내는 꼴이므로 전송 주기는 10 * 16.6ms = 166ms가 됨
+	// 만약 단일 틱에 n개의 fragment를 보낼 경우 이 딜레이는 10 * 16.6 / n ms가 되며,
+	// 틱당 2개를 보낸다 가정했을 경우 83ms로 주기가 더 짧아져 반응성이 높아짐.
 }
 
 void ANetHandler::GetPendingBuffer_UEServer(float DeltaTime)
@@ -351,7 +336,7 @@ void ANetHandler::ProcessRecv_UEServer(float DeltaTime)
 		{
 			RecvPendings.Dequeue(RecvPending);
 
-			uint64 sessionId = RecvPending->GetHeader()->senderId;
+			uint16 sessionId = RecvPending->GetHeader()->senderId;
 			uint16 recvBufferProtocol = RecvPending->GetHeader()->protocol;
 			switch (recvBufferProtocol)
 			{
@@ -398,45 +383,88 @@ void ANetHandler::ProcessRecv_UEServer(float DeltaTime)
 
 void ANetHandler::RegisterSend_UEServer(float DeltaTime)
 {
-	SD_GameState* gameStateData = new SD_GameState(
+	// 새 GameState 생성
+	if (bShouldCreateNewPacket)
+	{
+		bShouldCreateNewPacket = false;
+		Serializer->Clear();
+		Serializer->Serialize((SD_Data*)CreateNewGameStatePacket_UEServer(DeltaTime));
+		GenerateUniquePacketId();
+		PacketFragmentCount = (uint8)FMath::CeilToInt((float)Serializer->Array->Num() / (NetBufferManager::SendBufferSize - sizeof(PacketHeader)));
+		FragmentSendCycleTime = DESIRED_SERVER_SEND_CYCLE_PER_PACKET / PacketFragmentCount;
+		TimePassedSinceLastFragmentSend = 0;
+	}
+
+	TimePassedSinceLastFragmentSend += DeltaTime;
+
+	// fragment 몇 개 보내야 하는지 구함
+	int fragSendCount = TimePassedSinceLastFragmentSend / FragmentSendCycleTime;
+	TimePassedSinceLastFragmentSend = FMath::Max(TimePassedSinceLastFragmentSend - (FragmentSendCycleTime * fragSendCount), 0.0f);
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("fragment %i개 전송"), fragSendCount));
+	SendFragment_UEServer(DeltaTime, fragSendCount);
+}
+
+SD_GameState* ANetHandler::CreateNewGameStatePacket_UEServer(float DeltaTime)
+{
+	SD_GameState* GameState = new SD_GameState(
 		GetWorld()->GetGameState(),
-		GetRovenhellGameInstance()->TickCounter->GetTick(),
-		DeltaTime,
-		GetLastProcessedInputTicks()
+		GetRovenhellGameInstance()->TickCounter->GetTick()
 	);
+
+	PacketTick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
 
 	// 모든 플레이어들에 대해서 물리 정보를 갱신한다.
 	// TODO: 변경된 플레이어에 대해서만 정보를 보내는 것으로 패킷 크기 축소 가능
 	for (const auto& element : GetRovenhellGameInstance()->GetPlayers())
 	{
-		gameStateData->AddPlayerPhysics(new SD_PawnPhysics(element.Key, element.Value.Get()));
+		GameState->AddPlayerPhysics(new SD_PawnPhysics(element.Key, element.Value.Get()));
 	}
+	return GameState;
+}
 
+void ANetHandler::SendFragment_UEServer(float DeltaTime, int sendCount)
+{
 	// Scattering Packet
-	Serializer->Clear();
-	Serializer->Serialize((SD_Data*)gameStateData);
-	uint8 uniqueId = GenerateUniquePacketId();
-	uint8 totalFragmentCount = (uint8)FMath::CeilToInt((float)Serializer->Array->Num() / (NetBufferManager::SendBufferSize - sizeof(PacketHeader)));
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("전송 패킷 갯수: %i"), totalFragmentCount)); // TESTING
+	int i = 0;
+	int readDataSize = (NetBufferManager::SendBufferSize - sizeof(PacketHeader)); // 하나의 fragment를 만들기 위해 읽어야하는 (헤더를 제외한) 데이터 크기
+	i += readDataSize * (FragmentSendStart - 1); // 이미 발송한 부분까지은 점프
 
-	int packetCount = 1;
-	for (int i = 0; i < Serializer->Array->Num(); i += NetBufferManager::SendBufferSize - sizeof(PacketHeader))
+	for (int j = 0; i < Serializer->Array->Num() && j < sendCount; i += readDataSize)
 	{
 		TSharedPtr<SendBuffer> writeBuf = nullptr;
-		while (!writeBuf) writeBuf = Session->BufManager->SendPool->PopBuffer();
+		while (!writeBuf)
+		{
+			writeBuf = Session->BufManager->SendPool->PopBuffer();
+			if (!writeBuf) FPlatformProcess::YieldThread();
+		}
 
 		FillPacketSenderTypeHeader(writeBuf);
-		writeBuf->GetHeader()->uniqueId = uniqueId;
-		writeBuf->GetHeader()->packetOrder = packetCount;
-		writeBuf->GetHeader()->fragmentCount = totalFragmentCount;
+		writeBuf->GetHeader()->uniqueId = GetCurrentPacketUniqueId();
+		writeBuf->GetHeader()->packetOrder = FragmentSendStart++;
+		writeBuf->GetHeader()->fragmentCount = PacketFragmentCount;
 		writeBuf->GetHeader()->senderId = Session->GetSessionId();
 		writeBuf->GetHeader()->protocol = PacketProtocol::LOGIC_EVENT;
 		writeBuf->GetHeader()->type = PacketType::GAME_STATE;
+		writeBuf->GetHeader()->senderTick = PacketTick;
 
-		if (Serializer->WriteDataToBuffer(writeBuf, Serializer->Array->GetData() + i, NetBufferManager::SendBufferSize - sizeof(PacketHeader)))
+		if (Serializer->WriteDataToBuffer(writeBuf, Serializer->Array->GetData() + i, readDataSize))
 		{
-			packetCount++;
 			Session->PushSendQueue(writeBuf);
 		}
 	}
+
+	if (i >= Serializer->Array->Num())
+	{
+		// Fragment 전부 전송 완료
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("패킷 전송 완료 (fragment 총 개수: %i)"), PacketFragmentCount));
+		OnAllFragmentsSent_UEServer(DeltaTime);
+	}
+}
+
+void ANetHandler::OnAllFragmentsSent_UEServer(float DeltaTime)
+{
+	bShouldCreateNewPacket = true;
+	// PacketUniqueId의 경우 별도로 GenerateUniquePacketId()를 호출해 변경한다
+	PacketFragmentCount = 0;
+	FragmentSendStart = 1;
 }

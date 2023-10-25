@@ -13,7 +13,7 @@ template <typename BufferType>
 class IOCPGAME_API NetBufferPool
 {
 public:
-	NetBufferPool() : BUFFER_SIZE(1<<15), POOL_SIZE(1024) {}
+	NetBufferPool() : BUFFER_SIZE(4096), POOL_SIZE(65536) {}
 	NetBufferPool(uint32 bufferSize, uint32 poolSize) : BUFFER_SIZE(bufferSize), POOL_SIZE(poolSize) {}
 	~NetBufferPool() {}
 

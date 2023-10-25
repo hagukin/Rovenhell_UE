@@ -44,7 +44,7 @@ public:
 	bool IsSendQueueEmpty();
 
 	bool PushRecvQueue(TSharedPtr<RecvBuffer> recvBuffer); // 블로킹; 게임 처리가 필요한 버퍼를 대기열에 추가한다
-	bool IsRecvQueueEmpty(uint64 sessionId);
+	bool IsRecvQueueEmpty(uint16 sessionId);
 	bool Recv(TSharedPtr<RecvBuffer> recvBuffer); // 블로킹 (단 RecvHandler 스레드에서 실행된다)
 
 	bool TryConnect(NetAddress connectAddr, int32 minutes, int32 seconds); // waitForMs 밀리세컨드 동안 Connect를 시도하고 결과를 반환한다 (Blocking)
@@ -52,8 +52,8 @@ public:
 	void Disconnect();
 
 	const NetAddress& GetPeerAddr() const;
-	void SetSessionId(uint64 id) { _sessionId = id; return; }
-	const uint64 GetSessionId() const { return _sessionId; }
+	void SetSessionId(uint16 id) { _sessionId = id; return; }
+	const uint16 GetSessionId() const { return _sessionId; }
 
 public:
 	TUniquePtr<NetBufferManager> BufManager = nullptr;
@@ -65,5 +65,5 @@ public:
 private:
 	int32 bytesSent = 0; // Send()에서 사용; 현재 소켓이 Send 중일 경우, 몇 바이트를 발송 완료했는지
 	HostTypeEnum HostType;
-	uint64 _sessionId = 0; // 미들맨에서 할당받는 세션의 고유 ID; 클라이언트 구분에 사용된다 (서버는 크게 의미없다)
+	uint16 _sessionId = 0; // 미들맨에서 할당받는 세션의 고유 ID; 클라이언트 구분에 사용된다 (서버는 크게 의미없다)
 };

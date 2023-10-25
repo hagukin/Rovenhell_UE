@@ -53,7 +53,7 @@ bool InputApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, class ANe
 	SD_GameInputHistory* inputData = new SD_GameInputHistory();
 	netHandler->GetDeserializerShared()->ReadDataFromBuffer(packet);
 	netHandler->GetDeserializerShared()->Deserialize((SD_Data*)inputData);
-	uint64 sessionId = packet->GetHeader()->senderId;
+	uint16 sessionId = packet->GetHeader()->senderId;
 
 	// 모든 플레이어들의 인풋 처리
 	for (const SD_GameInput& input : inputData->GameInputs)
@@ -63,13 +63,10 @@ bool InputApplier::ApplyPacket_UEServer(TSharedPtr<RecvBuffer> packet, class ANe
 			APlayerPawn* playerPawn = netHandler->GetRovenhellGameInstance()->GetPlayerOfOwner(sessionId);
 			if (!playerPawn)
 			{
-				UE_LOG(LogTemp, Error, TEXT("인풋 처리의 대상을 플레이어 폰으로 캐스팅 할 수 없습니다."), sessionId);
+				UE_LOG(LogTemp, Error, TEXT("세션 %i번 플레이어 폰이 없습니다."), sessionId);
 				return false;
 			}
-			playerPawn->Move_UEServer(FInputActionValue(FVector(input.X, input.Y, input.Z)), input.DeltaTime);
-
-			// 더 나중 틱으로 업데이트
-			netHandler->UpdateLastProcessedInputTickForSession(sessionId, FMath::Max<uint32>(netHandler->GetLastProcessedInputTickForSession(sessionId), input.Tick));
+			playerPawn->Move_UEServer(FInputActionValue(FVector(input.X * (input.XSign ? -1 : 1), input.Y * (input.YSign ? -1 : 1), input.Z * (input.ZSign ? -1 : 1))), input.DeltaTime);
 		}
 	}
 	return true;

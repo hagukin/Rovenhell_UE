@@ -19,6 +19,9 @@
 #include "GameFramework/Actor.h"
 #include "NetHandler.generated.h"
 
+#define DESIRED_SERVER_SEND_CYCLE_PER_PACKET 0.125f // per fragment가 아님
+#define MIN_FRAGMENTS_SEND_COUNT_PER_TICK 1
+#define MAX_FRAGMENTS_SEND_COUNT_PER_TICK 10 // Congestion control
 
 UCLASS()
 class IOCPGAME_API ANetHandler : public AActor
@@ -41,13 +44,10 @@ public:
 	TSharedPtr<NetSession> GetSessionShared() { return Session; }
 	TSharedPtr<SerializeManager> GetSerializerShared() { return Serializer; }
 	TSharedPtr<SerializeManager> GetDeserializerShared() { return Deserializer; }
-	void UpdateLastProcessedInputTickForSession(uint64 sessionId, uint32 tick);
-	uint32 GetLastProcessedInputTickForSession(uint64 sessionId);
 	HostTypeEnum GetHostType() { return HostType; }
 	void FillPacketSenderTypeHeader(TSharedPtr<SendBuffer> buffer);
 	AIocpGameState* GetIocpGameState() { return Cast<AIocpGameState>(GetWorld()->GetGameState()); }
 	URovenhellGameInstance* GetRovenhellGameInstance() { return Cast<URovenhellGameInstance>(GetGameInstance()); }
-	const TMap<uint64, uint32>& GetLastProcessedInputTicks() { return LastProcessedInputTick; }
 	
 private:
 	void Init();
@@ -55,6 +55,7 @@ private:
 	void PacketDebug(float DeltaTime);
 	bool DistributePendingPacket(); // RecvPending 패킷을 적절한 Applier에게 전달하고, 처리가 완료되면 버퍼 풀에 버퍼를 반환한다
 	uint8 GenerateUniquePacketId();
+	uint8 GetCurrentPacketUniqueId() { return PacketUniqueId; }
 	
 	/*UEClient*/
 	void Tick_UEClient(float DeltaTime);
@@ -68,6 +69,10 @@ private:
 	void GetPendingBuffer_UEServer(float DeltaTime);
 	void ProcessRecv_UEServer(float DeltaTime);
 	void RegisterSend_UEServer(float DeltaTime);
+	SD_GameState* CreateNewGameStatePacket_UEServer(float DeltaTime);
+	void SendFragment_UEServer(float DeltaTime, int sendCount);
+	void OnAllFragmentsSent_UEServer(float DeltaTime);
+
 private:
 	TSharedPtr<NetSession> Session;
 	TSharedPtr<RecvBuffer> AddToRecvPendings = nullptr;
@@ -86,10 +91,14 @@ private:
 
 	float AccumulatedTickTime = 0.0f; // ms; 일정 주기로 tick에서 무언가를 처리하기 위해 사용; 매 틱에서의 DeltaTime 더해 누적
 
-	uint8 PacketUniqueId = 1;
-
 private:
 	/*UEServer*/
-	TMap<uint64, bool> HasProcessedOncePerTickPacket; // 이번 틱에 어떤 세션의 ONCE_PER_TICK 프로토콜 패킷이 처리되었는가; 매 틱마다 각 항목이 false로 초기화된다
-	TMap<uint64, uint32> LastProcessedInputTick; // 각 클라이언트 별로 몇 로컬 틱까지 서버에서 처리가 완료되었는가; 이 정보는 클라이언트로 Broadcast되어, 클라이언트가 수신받은 서버 정보를 적용한 후 몇 로컬 틱까지 인풋을 재연산해야 하는지 구할 때 사용된다
+	TMap<uint16, bool> HasProcessedOncePerTickPacket; // 이번 틱에 어떤 세션의 ONCE_PER_TICK 프로토콜 패킷이 처리되었는가; 매 틱마다 각 항목이 false로 초기화된다
+	bool bShouldCreateNewPacket = true; // 이전 패킷의 모든 fragment들의 전송이 끝났으면 true
+	uint8 PacketUniqueId = 1; // 1번부터 시작; Read 시 가급적 getter 사용
+	uint8 PacketFragmentCount = 0;
+	uint8 FragmentSendStart = 1; // 1번부터 시작
+	float FragmentSendCycleTime = 0.0f; // fragment 1개 발송 주기 (s)
+	float TimePassedSinceLastFragmentSend = 0.0f; // 현재 발송중인 패킷(fragment들의 합)에 소비된 DeltaTime 누적 
+	uint32 PacketTick = 0; // 이 패킷 데이터를 추출했을 시점에서의 서버의 틱; 추후 fragment를 다른 틱에서 보내더라도 이 값은 동일하게 유지되어야 함.
 };

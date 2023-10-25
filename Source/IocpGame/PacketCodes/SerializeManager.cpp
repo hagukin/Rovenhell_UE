@@ -67,12 +67,12 @@ bool SerializeManager::ReadDataFromBuffer(TSharedPtr<RecvBuffer> readBuffer)
 void SerializeManager::ResetPacketInfo()
 {
 	ReceivedPacketId = 0;
-	LasReceivedFragmentsNumber = 0;
+	LastReceivedFragmentsNumber = 0;
 }
 
 bool SerializeManager::IsCorrectPacket(const PacketHeader* packetHeader)
 {
-	if (LasReceivedFragmentsNumber + 1 != packetHeader->packetOrder)
+	if (LastReceivedFragmentsNumber + 1 != packetHeader->packetOrder)
 	{
 		UE_LOG(LogTemp, Error, TEXT("패킷 로스가 발생했거나, 혹은 알 수 없는 이유로 패킷 순서가 뒤바뀌었습니다!"));
 		return false;
@@ -83,6 +83,6 @@ bool SerializeManager::IsCorrectPacket(const PacketHeader* packetHeader)
 bool SerializeManager::SetPacketInfo(const PacketHeader* packetHeader)
 {
 	ReceivedPacketId = packetHeader->uniqueId;
-	LasReceivedFragmentsNumber = packetHeader->packetOrder;
+	LastReceivedFragmentsNumber = packetHeader->packetOrder;
 	return true;
 }

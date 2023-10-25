@@ -33,7 +33,7 @@ public:
 	FThreadSafeCounter StopCounter; // Notifier; 0이 아닐 경우 스레드 작동 정지
 
 	mutable FCriticalSection Lock;
-	TMap<uint64, TSharedPtr<TQueue<TSharedPtr<RecvBuffer>>>> PendingClientBuffers; // 클라이언트 id - 처리 대기중인 해당 클라이언트의 패킷
+	TMap<uint16, TSharedPtr<TQueue<TSharedPtr<RecvBuffer>>>> PendingClientBuffers; // 클라이언트 id - 처리 대기중인 해당 클라이언트의 패킷
 
 private:
 	/* UE SERVER */

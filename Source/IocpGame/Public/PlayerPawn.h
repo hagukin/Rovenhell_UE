@@ -29,6 +29,7 @@ public:
 
 	// 컨트롤러 bind
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	virtual void Puppetfy() override;
 
 	// Getter
 	UActorInputSyncComponent* GetInputSyncComp() const { return InputSyncComp; }

@@ -11,7 +11,7 @@ URovenhellGameInstance::URovenhellGameInstance()
 	TickCounter = MakeUnique<GameTickCounter>();
 }
 
-bool URovenhellGameInstance::AddPlayer(uint64 sessionId, APlayerPawn* player)
+bool URovenhellGameInstance::AddPlayer(uint16 sessionId, APlayerPawn* player)
 {
     if (!Players.Contains(sessionId))
     {
@@ -29,7 +29,7 @@ bool URovenhellGameInstance::AddPlayer(uint64 sessionId, APlayerPawn* player)
     return true;
 }
 
-bool URovenhellGameInstance::RemovePlayer(uint64 sessionId)
+bool URovenhellGameInstance::RemovePlayer(uint16 sessionId)
 {
     if (Players.Contains(sessionId))
     {
@@ -45,7 +45,7 @@ bool URovenhellGameInstance::RemovePlayer(uint64 sessionId)
     }
 }
 
-APlayerPawn* URovenhellGameInstance::GetPlayerOfOwner(uint64 sessionId)
+APlayerPawn* URovenhellGameInstance::GetPlayerOfOwner(uint16 sessionId)
 {
     if (!Players.Contains(sessionId))
     {

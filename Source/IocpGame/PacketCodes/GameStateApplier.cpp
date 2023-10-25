@@ -45,6 +45,9 @@ bool GameStateApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, ANetHandler* n
 
 bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
 {
+	// 서버 틱과 동기화
+	Cast<URovenhellGameInstance>(GameInstance)->TickCounter->SetServerTick_UEClient(packet->GetHeader()->senderTick);
+
 	// 패킷 순서 검증 (TCP지만 만일의 사태를 대비)
 	if (!netHandler->GetDeserializerShared()->IsCorrectPacket(packet->GetHeader()))
 	{
@@ -62,67 +65,69 @@ bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, ANetH
 	{
 		SD_GameState* gameState = new SD_GameState();
 		netHandler->GetDeserializerShared()->Deserialize((SD_Data*)gameState);
-		Cast<URovenhellGameInstance>(GameInstance)->TickCounter->SetServerTick_UEClient(gameState->Tick); // 서버 틱과 동기화
-		ApplyPhysicsAndSyncPlayers_UEClient(gameState, netHandler); // 데이터 처리
-		// TODO: GameState 내의 다른 데이터들도 처리
+		ApplyGameState_UEClient(gameState, netHandler); // 처리
 		netHandler->GetDeserializerShared()->ResetPacketInfo();
 		netHandler->GetDeserializerShared()->Clear(); // 처리를 완료한 버퍼 Fragment 삭제
 	}
 	return true;
 }
 
-void GameStateApplier::ApplyPhysicsAndSyncPlayers_UEClient(SD_GameState* gameState, ANetHandler* netHandler)
+void GameStateApplier::ApplyGameState_UEClient(SD_GameState* gameState, ANetHandler* netHandler)
 {
+	for (auto& playerConnection : IsPlayerConnected)
+	{
+		// NONEXISTENT인 세션은 Disconnect 해선 안됨 (nullptr dereference 에러남)
+		if (playerConnection.Value == ConnectionStatus::CONNECTED)
+		{
+			playerConnection.Value = ConnectionStatus::DISCONNECTED;
+		}
+	}
+
+	// 접속해있는 플레이어들에 대한 처리
 	for (SD_PawnPhysics playerPhysics : gameState->UpdatedPlayerPhysics)
 	{
-		// 세션 id 기반으로 플레이어 폰 접근 시도
-		APlayerPawn* targetPlayer = netHandler->GetRovenhellGameInstance()->GetPlayerOfOwner(playerPhysics.SessionId);
+		CheckForNewConnection_UEClient(playerPhysics.SessionId, netHandler); // 새로 접속했을 경우 알맞는 처리를 해주고 폰 생성
+		IsPlayerConnected.Add(playerPhysics.SessionId, ConnectionStatus::CONNECTED); // 정보 업데이트 혹은 추가
+		ApplyPlayerPhysics_UEClient(gameState, playerPhysics, netHandler); // 나머지 로직 처리
+	}
 
-		// 새로운 세션의 접속 확인
-		if (!targetPlayer)
+	// 접속 종료된 세션 처리
+	for (auto& playerConnection : IsPlayerConnected)
+	{
+		if (playerConnection.Value == ConnectionStatus::DISCONNECTED)
 		{
-			OnNewClientConnection_UEClient(playerPhysics.SessionId, netHandler);
-			targetPlayer = netHandler->GetRovenhellGameInstance()->GetPlayerOfOwner(playerPhysics.SessionId);
-			if (!targetPlayer)
-			{
-				UE_LOG(LogTemp, Fatal, TEXT("새로 접속한 클라이언트의 플레이어 폰이 정상적으로 생성되지 않았습니다."));
-				continue;
-			}
-		}
-
-		// 물리 보정
-		FVector velocity(playerPhysics.XVelocity, playerPhysics.YVelocity, playerPhysics.ZVelocity);
-		// 보정 필요 여부 판단
-		if (!targetPlayer->GetPhysicsSyncComp()->IsActorInSyncWith(playerPhysics.Transform, velocity))
-		{
-			// 보정 처리
-			targetPlayer->GetPhysicsSyncComp()->AdjustActorPhysics(gameState->DeltaTime, playerPhysics.Transform, velocity);
-
-			// 인풋 재처리
-			if (class UActorInputSyncComponent* pawnSyncComp = targetPlayer->GetInputSyncComp())
-			{
-				uint32 processedTick = 0;
-				if (!gameState->ProcessedTicks.Contains(playerPhysics.SessionId))
-				{
-					UE_LOG(LogTemp, Warning, TEXT("세션 아이디 %i번 플레이어의 ProcessedTick 정보를 찾을 수 없습니다. 인풋 재처리를 실행하지 않습니다."));
-					continue;
-				}
-				else
-				{
-					processedTick = gameState->ProcessedTicks[playerPhysics.SessionId];
-				}
-
-				pawnSyncComp->ReapplyLocalInputAfter(processedTick); // TODO: 보정용 인풋 재처리 시에는 애니메이션 업데이트 X
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("플레이어 폰에 대한 ActorInputSyncComponent를 찾지 못했습니다! 플레이어 캐릭터의 인풋을 재처리하지 못해 끊김이 발생할 수 있습니다."))
-			}
+			OnNewClientDisconnection_UEClient(playerConnection.Key, netHandler);
+			playerConnection.Value = ConnectionStatus::NONEXISTENT;
 		}
 	}
 }
 
-void GameStateApplier::OnNewClientConnection_UEClient(uint64 clientSessionId, ANetHandler* netHandler)
+void GameStateApplier::ApplyPlayerPhysics_UEClient(SD_GameState* gameState, const SD_PawnPhysics& playerPhysics, ANetHandler* netHandler)
+{
+	APlayerPawn* player = netHandler->GetRovenhellGameInstance()->GetPlayerOfOwner(playerPhysics.SessionId);
+	if (!player)
+	{
+		UE_LOG(LogTemp, Fatal, TEXT("$%i번 세션의 플레이어 폰이 설정되지 않았습니다!"), playerPhysics.SessionId);
+		return;
+	}
+
+	// 물리 보정 필요 여부 판정
+	FTransform transform = playerPhysics.GetTransformFromData();
+	if (!player->GetPhysicsSyncComp()->IsActorInSyncWith(transform))
+	{
+		// 물리 보정
+		player->GetPhysicsSyncComp()->AdjustActorPhysics(transform);
+
+		// 인풋 재처리 (호스트 플레이어에 대해서만)
+		class UActorInputSyncComponent* pawnSyncComp = player->GetInputSyncComp();
+		if (!player->IsPuppet() && pawnSyncComp)
+		{
+			pawnSyncComp->ReapplyLocalInputAfter(gameState->GameStateTick); // 패킷 틱이 아닌 GameState 틱임에 유의
+		}
+	}
+}
+
+void GameStateApplier::OnNewClientConnection_UEClient(uint16 clientSessionId, ANetHandler* netHandler)
 {
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("다른 플레이어의 접속이 감지되었습니다: %i번 클라이언트 세션 연결"), clientSessionId));
 
@@ -135,5 +140,35 @@ void GameStateApplier::OnNewClientConnection_UEClient(uint64 clientSessionId, AN
 		return;
 	}
 	UE_LOG(LogTemp, Error, TEXT("NetSpawner를 찾지 못했습니다."));
+	return;
+}
+
+void GameStateApplier::OnNewClientDisconnection_UEClient(uint16 clientSessionId, ANetHandler* netHandler)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("%i번 클라이언트 세션 연결 해제"), clientSessionId));
+
+	// 플레이어 폰 삭제
+	TWeakObjectPtr<ANetActorSpawner> netSpawner = netHandler->GetRovenhellGameInstance()->GetNetActorSpawner();
+	if (netSpawner != nullptr && netSpawner.IsValid())
+	{
+		APlayerPawn* player = netHandler->GetRovenhellGameInstance()->GetPlayerOfOwner(clientSessionId);
+		netHandler->GetRovenhellGameInstance()->RemovePlayer(clientSessionId);
+		netSpawner->Remove(player);
+		return;
+	}
+	UE_LOG(LogTemp, Error, TEXT("NetSpawner를 찾지 못했습니다."));
+	return;
+}
+
+void GameStateApplier::CheckForNewConnection_UEClient(uint16 sessionId, ANetHandler* netHandler)
+{
+	// 세션 id 기반으로 플레이어 폰 접근 시도
+	APlayerPawn* player = netHandler->GetRovenhellGameInstance()->GetPlayerOfOwner(sessionId);
+
+	// 새로운 세션의 접속 확인
+	if (!player)
+	{
+		OnNewClientConnection_UEClient(sessionId, netHandler);
+	}
 	return;
 }

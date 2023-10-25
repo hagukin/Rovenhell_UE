@@ -29,7 +29,7 @@ bool ANetActorSpawner::Remove(AActor* actor)
 APlayerPawn* ANetActorSpawner::SpawnNewPlayerPawn()
 {
 	APlayerPawn* player = Cast<APlayerPawn>(Spawn(PlayerPawnToSpawn));
-	player->SpawnDefaultController(); // TODO: Custom controller
+	player->Puppetfy();
 	return player;
 }
 

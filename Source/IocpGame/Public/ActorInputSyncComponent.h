@@ -10,7 +10,7 @@
 #include "InputActionValue.h"
 #include "ActorInputSyncComponent.generated.h"
 
-#define MAX_INPUTS_HISTORY_SIZE 120 // 틱 당 허용되는 최대 인풋수 (20) * 서버의 State 전송 rate와 클라 틱 rate의 ratio (100 vs 16.6 = 6); Min 2
+#define MAX_INPUTS_HISTORY_SIZE 240 // 틱 당 허용되는 최대 인풋수 (20) * 서버의 State 전송 rate와 클라 틱 rate의 ratio (200 vs 16.6 = 12); Min 2
 
 struct LocalInputs
 {

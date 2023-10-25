@@ -33,10 +33,10 @@ public:
 	void SetHostTypeAs(uint8 hostType) { GameExecType->SetHostType((HostTypeEnum)hostType); }
 
 	//// 현재 접속한 세션들의 플레이어 컨트롤러 관리
-	bool AddPlayer(uint64 sessionId, APlayerPawn* pawn);
-	bool RemovePlayer(uint64 sessionId); // 실제 폰 객체에 대한 삭제 처리는 별도로 해주어야 함
-	APlayerPawn* GetPlayerOfOwner(uint64 sessionId); // 반환값은 다음 사이클(혹은 그 이후)에 GC에 의해 삭제될 수 있기 때문에 함수를 호출한 해당 사이클에서만 반환값의 유효성이 보장됨. 따라서 반환 값을 다른 곳에 캐싱하는 것은 권장되지 않음.
-	const TMap<uint64, TWeakObjectPtr<APlayerPawn>>& GetPlayers() { return Players; }
+	bool AddPlayer(uint16 sessionId, APlayerPawn* pawn);
+	bool RemovePlayer(uint16 sessionId); // 실제 폰 객체에 대한 삭제 처리는 별도로 해주어야 함
+	APlayerPawn* GetPlayerOfOwner(uint16 sessionId); // 반환값은 다음 사이클(혹은 그 이후)에 GC에 의해 삭제될 수 있기 때문에 함수를 호출한 해당 사이클에서만 반환값의 유효성이 보장됨. 따라서 반환 값을 다른 곳에 캐싱하는 것은 권장되지 않음.
+	const TMap<uint16, TWeakObjectPtr<APlayerPawn>>& GetPlayers() { return Players; }
 
 	TWeakObjectPtr<ANetHandler> GetNetHandler(); // 현재 월드에 있는 NetHandler를 반환한다. 없을 경우 nullptr를 반환한다.
 	TWeakObjectPtr<ANetActorSpawner> GetNetActorSpawner(); // 현재 월드에 있는 NetActorSpanwer를 반환한다. 없을 경우 nullptr를 반환한다.
@@ -47,7 +47,7 @@ public:
 
 private:
 	TSharedPtr<ExecType> GameExecType = nullptr;
-	TMap<uint64, TWeakObjectPtr<APlayerPawn>> Players; // 외부에서의 해제 시 처리를 위해 TWeakObjectPtr 사용 TODO: 테스트 필요
+	TMap<uint16, TWeakObjectPtr<APlayerPawn>> Players; // 외부에서의 해제 시 처리를 위해 TWeakObjectPtr 사용 TODO: 테스트 필요
 	TWeakObjectPtr<ANetHandler> NetHandlerWeakPtr = nullptr; // 성능 향상을 위해 캐싱
 	TWeakObjectPtr<ANetActorSpawner> NetActorSpawnerWeakPtr = nullptr; // 성능 향상을 위해 캐싱
 };

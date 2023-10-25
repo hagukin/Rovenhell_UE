@@ -42,7 +42,14 @@ void UActorInputSyncComponent::ApplyInput(const LocalInputs& input)
 
 void UActorInputSyncComponent::ReapplyLocalInputAfter(uint32 tick)
 {
-	int applyStartIndex = InputTail;
+	// [서버에서 수신받은 시점의 틱, 기록된 마지막 인풋 틱] 범위에 해당하는 인풋들을 재처리한다
+	if (tick >= InputsHistory[InputTail].InputTick)
+	{
+		// 서버 틱이 클라이언트 인풋 히스토리의 가장 마지막 틱보다 같거나 클 경우 인풋 재처리를 진행하지 않는다
+		return;
+	}
+
+	int applyStartIndex = InputHead;
 	for (int addIdx = 0; addIdx < MAX_INPUTS_HISTORY_SIZE; ++addIdx)
 	{
 		if (InputsHistory[(InputHead + addIdx) % MAX_INPUTS_HISTORY_SIZE].InputTick > tick)

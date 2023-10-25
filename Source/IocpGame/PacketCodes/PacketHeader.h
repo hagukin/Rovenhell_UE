@@ -12,9 +12,10 @@ struct PacketHeader
 	uint8 fragmentCount; // 전체 데이터가 몇 개의 조각들로 구성되어 있는지
 	uint16 size; // 헤더를 포함한 이 단일 패킷(fragment)의 총 크기
 	uint16 senderType; // 발신자 타입 (ExecType)
-	uint64 senderId; // 발신자와 연동된 세션의 세션 id
+	uint16 senderId; // 발신자와 연동된 세션의 세션 id
 	uint8 protocol; // 패킷 처리 방식
 	uint16 type; // 패킷 id
+	uint32 senderTick; // 이 패킷 발송자의 게임 틱; 없으면 0을 발송
 };
 
 enum PacketType : uint16

@@ -27,6 +27,7 @@ uint32 RecvHandler::Run()
         while (!recvBuffer)
         {
             recvBuffer = Session->BufManager->RecvPool->PopBuffer();
+            if (!recvBuffer) FPlatformProcess::YieldThread();
         }
         count = 0;
         if (!Session->Recv(recvBuffer))

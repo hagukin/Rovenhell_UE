@@ -57,7 +57,12 @@ void ANetSyncPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 
 }
 
-bool ANetSyncPawn::SetOwnerSessionId(uint64 id)
+void ANetSyncPawn::Puppetfy()
+{
+	bIsPuppet = true;
+}
+
+bool ANetSyncPawn::SetOwnerSessionId(uint16 id)
 {
 	if (SessionIdInitialized)
 	{
@@ -68,7 +73,7 @@ bool ANetSyncPawn::SetOwnerSessionId(uint64 id)
 	return true;
 }
 
-uint64 ANetSyncPawn::GetOwnerSessionId(uint64 id)
+uint64 ANetSyncPawn::GetOwnerSessionId(uint16 id)
 {
 	if (!SessionIdInitialized)
 	{

@@ -52,6 +52,23 @@ void APlayerPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	}
 }
 
+void APlayerPawn::Puppetfy()
+{
+	Super::Puppetfy();
+
+	// 퍼펫에게 불필요한 컴포넌트들 삭제
+	FollowCamera->UnregisterComponent();
+	FollowCamera->DestroyComponent();
+
+	CameraBoom->UnregisterComponent();
+	CameraBoom->DestroyComponent();
+
+	InputSyncComp->UnregisterComponent();
+	InputSyncComp->DestroyComponent();
+
+	GameInputPendings = nullptr;
+}
+
 void APlayerPawn::BeginPlay()
 {
 	Super::BeginPlay();
@@ -111,7 +128,7 @@ void APlayerPawn::Move_Entry(const FInputActionValue& Value)
 void APlayerPawn::Move_UEClient(const FInputActionValue& Value, float DeltaTime)
 {
 	Move(Value, DeltaTime);
-	uint32 tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetLocalTick(); // 주의: 반드시 로컬 틱을 보내기 및 히스토리에 저장해야함
+	uint32 tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
 	GameInputPendings->Add(SD_GameInput(ActionTypeEnum::MOVE, Value, DeltaTime, tick));
 	GetInputSyncComp()->AddInputsInfoAndMoveOne(ActionTypeEnum::MOVE, Value, DeltaTime, tick);
 }

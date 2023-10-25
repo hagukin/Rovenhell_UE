@@ -27,13 +27,13 @@ public:
 	UActorPhysicsSyncComponent();
 
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-	bool IsActorInSyncWith(const FTransform& Transform, const FVector& Velocity);
-	void AdjustActorPhysics(float ServerDeltaTime, const FTransform& Transform, const FVector& Velocity); // 해당 틱에 해당 물리 정보를 갖도록 액터 정보 수정
+	bool IsActorInSyncWith(const FTransform& Transform);
+	void AdjustActorPhysics(const FTransform& Transform); // 해당 틱에 해당 물리 정보를 갖도록 액터 정보 수정
 	void AddCurrentPhysicsInfo(); // Tail에 액터 정보를 덮어쓴다
 
 protected:
 	virtual void BeginPlay() override;
-	bool IsValidPhysicsData(uint32 index, const FTransform& Transform, const FVector& Velocity); // 히스토리의 index번 물리 정보가 주어진 물리 정보와 일치하는지 반환한다 (boolean을 int8 형식으로)
+	bool IsValidPhysicsData(uint32 index, const FTransform& Transform); // 히스토리의 index번 물리 정보가 주어진 물리 정보와 일치하는지 반환한다 (boolean을 int8 형식으로)
 	void MoveOnePhysicsHistoryCursor() { PhysHead = (PhysHead + 1) % MAX_PHYSICS_HISTORY_SIZE; PhysTail = (PhysTail + 1) % MAX_PHYSICS_HISTORY_SIZE; } // 헤드 및 테일을 1씩 이동시킨다
 
 protected:
