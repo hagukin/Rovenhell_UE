@@ -35,7 +35,7 @@ public:
 	UActorInputSyncComponent* GetInputSyncComp() const { return InputSyncComp; }
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
-	FORCEINLINE virtual UPawnMovementComponent* GetMovementComponent() const { return MovementComp; };
+	FORCEINLINE virtual UNetPlayerMovementComponent* GetMovementComponent() const { return MovementComp; };
 
 	// 액션
 	void Move(const FInputActionValue& Value, float DeltaTime);

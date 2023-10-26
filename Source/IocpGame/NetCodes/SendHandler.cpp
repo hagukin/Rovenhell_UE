@@ -31,10 +31,7 @@ uint32 SendHandler::Run()
             else
             {
                 // Send 성공
-                if (HostType == HostTypeEnum::LOGIC_SERVER || HostType == HostTypeEnum::LOGIC_SERVER_HEADLESS)
-                {
-                    FPlatformProcess::YieldThread(); // 최적화 위해 더 호출이 잦은 타 스레드에게 양보
-                }
+                FPlatformProcess::YieldThread(); // 클라, 서버 모두 발송 주기가 틱보다 길기 때문에 최적화 위해 타 스레드에게 양보
             }
             Session->BufManager->SendPool->PushBuffer(MoveTemp(SendPending));
             SendPending = nullptr;

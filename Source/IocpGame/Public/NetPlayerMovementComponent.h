@@ -32,14 +32,18 @@ public:
 	void BeginTick();
 	void EndTick(float HostDeltaTime);
 
+	// Getter
+	FVector GetCurrentFacingDirection();
+	APlayerPawn* GetPlayer();
+
 	// 물리 연산
 	// 주의: PawnMovement에 기본적으로 구현된 함수들(AddInputVector 등)은 우리의 넷코드와 호환되지 않기 때문에 사용하지 않는다
 	void AddMovementData(FVector MoveVector, float DeltaTime); // 콜스택: InputApplier -> Move
+	void ApplySingleMoveInputData(const MoveInputData& moveInputData);
+	void ApplySingleMoveInputData(const MoveInputData& moveInputData, FVector CustomPlayerFacingDirection); // 인풋 재연산 시 과거 인풋 시점의 FacingDirection을 건내줄 때 사용
 
+	FORCEINLINE bool CanFallOffLedge() { return bCanFallOffLedge; }
 private:
-	APlayerPawn* GetPlayer();
-	FVector GetCurrentFacingDirection();
-
 	void ApplyMovement(FVector FacingDirection, float InputDeltaTime);
 	void ApplyRotation(FVector FacingDirection, float InputDeltaTime);
 
@@ -53,6 +57,12 @@ private:
 	//// 이동
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Input, meta = (AllowPrivateAccess = "true"))
 	float PlayerSpeed = 350.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Input, meta = (AllowPrivateAccess = "true"))
+	bool bCanFallOffLedge = false; // bCanWalkOffLedge가 절벽에서 떨어지는 것을 방지한다면, 이 값은 모든 종류의 falling을 방지해 중력 연산을 사전에 막는다
+	const float MoveEstimationDistance = 0.01f; // 이동방향에서 fall 판정을 하기 위해 얼마만큼 이동할 것인가
+	const float MinFallOffDistance = 0.1f; // 이 거리보다 높은 고저차는 fall로 간주
+	const float FallingTraceDistance = 1e5; // 이 거리만큼 fall 트레이스
 
 	// 이동 애니메이션
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))

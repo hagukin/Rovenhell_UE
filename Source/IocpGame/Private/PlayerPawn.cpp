@@ -130,7 +130,7 @@ void APlayerPawn::Move_UEClient(const FInputActionValue& Value, float DeltaTime)
 	Move(Value, DeltaTime);
 	uint32 tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
 	GameInputPendings->Add(SD_GameInput(ActionTypeEnum::MOVE, Value, DeltaTime, tick));
-	GetInputSyncComp()->AddInputsInfoAndMoveOne(ActionTypeEnum::MOVE, Value, DeltaTime, tick);
+	GetInputSyncComp()->AddInputsInfo(ActionTypeEnum::MOVE, Value, DeltaTime, tick, GetMovementComponent()->GetCurrentFacingDirection()); // 커서 이동은 나중에 해준다
 }
 
 void APlayerPawn::Move_UEServer(const FInputActionValue& Value, float DeltaTime)

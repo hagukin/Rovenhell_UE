@@ -39,7 +39,7 @@ uint32 RecvHandler::Run()
         else
         {
             // Recv 성공
-            if (HostType == HostTypeEnum::CLIENT || HostType == HostTypeEnum::CLIENT_HEADLESS)
+            if (HostType == HostTypeEnum::CLIENT || HostType == HostTypeEnum::CLIENT_HEADLESS) // 서버는 다수 클라이언트에게 수신받기 때문에 yield하지 않음
             {
                 FPlatformProcess::YieldThread(); // 최적화 위해 더 호출이 잦은 타 스레드에게 양보
             }

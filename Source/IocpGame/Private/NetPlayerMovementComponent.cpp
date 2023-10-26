@@ -19,12 +19,7 @@ void UNetPlayerMovementComponent::TickComponent(float DeltaTime, ELevelTick Tick
     // 각 인풋별로 발송받은 델타 타임을 적용해 연산한다.
     for (const MoveInputData& DataPerInput : MoveDatas)
     {
-        // 이동
-        ApplyMovement(GetCurrentFacingDirection(), DataPerInput.DeltaTime);
-
-        // 회전
-        this->DesiredDirection = DataPerInput.MoveVector;
-        ApplyRotation(GetCurrentFacingDirection(), DataPerInput.DeltaTime);
+        ApplySingleMoveInputData(DataPerInput);
 
         MoveInputDeltaTimeSumThisTick += DataPerInput.DeltaTime;
         MoveInputCountThisTick++;
@@ -84,6 +79,24 @@ void UNetPlayerMovementComponent::AddMovementData(FVector MoveVector, float Delt
     MoveDatas.Add({ MoveVector, DeltaTime });
 }
 
+void UNetPlayerMovementComponent::ApplySingleMoveInputData(const MoveInputData& moveInputData)
+{
+    ApplySingleMoveInputData(moveInputData, GetCurrentFacingDirection());
+}
+
+void UNetPlayerMovementComponent::ApplySingleMoveInputData(const MoveInputData& moveInputData, FVector CustomPlayerFacingDirection)
+{
+    // 이동
+    ApplyMovement(CustomPlayerFacingDirection, moveInputData.DeltaTime);
+
+    // 회전
+    this->DesiredDirection = moveInputData.MoveVector; // 인풋 방향
+    ApplyRotation(CustomPlayerFacingDirection, moveInputData.DeltaTime);
+
+    // 중력
+    // TODO
+}
+
 APlayerPawn* UNetPlayerMovementComponent::GetPlayer()
 {
     return Cast<APlayerPawn>(PawnOwner);
@@ -101,15 +114,18 @@ void UNetPlayerMovementComponent::ApplyMovement(FVector FacingDirection, float I
 {
     APlayerPawn* Player = GetPlayer();
     if (!Player) return;
-    FHitResult hitResult;
-    FVector moveVector = FacingDirection.GetClampedToMaxSize(1.0f) * PlayerSpeed * InputDeltaTime;
-    if (!moveVector.IsNearlyZero())
+
+    FVector currLocation = Player->GetActorLocation();
+    FVector delta = FacingDirection.GetClampedToMaxSize(1.0f) * PlayerSpeed * InputDeltaTime;
+
+    if (!delta.IsNearlyZero())
     {
+        // 충돌 체크
         FHitResult Hit;
-        SafeMoveUpdatedComponent(moveVector, UpdatedComponent->GetComponentRotation(), true, Hit);
+        SafeMoveUpdatedComponent(delta, UpdatedComponent->GetComponentRotation(), true, Hit);
         if (Hit.IsValidBlockingHit())
         {
-            SlideAlongSurface(moveVector, 1.f - Hit.Time, Hit.Normal, Hit); // TODO: Time formula 점검
+            SlideAlongSurface(delta, 1.f - Hit.Time, Hit.Normal, Hit, false/*impact 무시*/);
         }
     }
 }

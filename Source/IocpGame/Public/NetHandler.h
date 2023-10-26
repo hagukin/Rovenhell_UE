@@ -62,6 +62,7 @@ private:
 	void RegisterSend_UEClient(float DeltaTime);
 	void GetPendingBuffer_UEClient(float DeltaTime);
 	void ProcessRecv_UEClient(float DeltaTime);
+	void OnProcessRecvFinish_UEClient(float DeltaTime);
 
 	/*UEServer*/
 	void StartingNewGameTick_UEServer();

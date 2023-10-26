@@ -46,11 +46,18 @@ bool GameStateApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, ANetHandler* n
 bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
 {
 	// 서버 틱과 동기화
-	Cast<URovenhellGameInstance>(GameInstance)->TickCounter->SetServerTick_UEClient(packet->GetHeader()->senderTick);
+	netHandler->GetRovenhellGameInstance()->TickCounter->SetServerTick_UEClient(packet->GetHeader()->senderTick);
 
 	// 패킷 순서 검증 (TCP지만 만일의 사태를 대비)
 	if (!netHandler->GetDeserializerShared()->IsCorrectPacket(packet->GetHeader()))
 	{
+		// NOTE: 순서가 꼬이는 경우는 
+		// 1) 멀티스레드 발송과정에서 순서가 섞였을 경우 (이 경우가 빈번할 경우 순서 맞춰주도록 로직 수정이 필요함, 그러나 아직 이런 현상이 관측되지 않으므로 보류)
+		// 2) TCP 발송에서의 불량 패킷
+		// 3) UEServer의 Congestion control로 인해 일부 패킷이 잘려서 발송되었을 경우
+		// 정도가 있을 수 있으며, 이중 3번이 가장 가능성이 높은 경우로, 이때는 그냥 패킷을 무시해주면 된다
+		// 2번은 GameState 패킷의 구조 특성상 현재로써는 모든 패킷을 반드시 받아야 하는게 아니기 때문에 그냥 패킷을 무시하고
+		// 1번의 경우에는 발생한 사례가 없지만 발생한다면 순서를 보정해주는 로직의 작성이 필요하다. TODO
 		netHandler->GetDeserializerShared()->ResetPacketInfo();
 		netHandler->GetDeserializerShared()->Clear(); // 그동안 수신한 버퍼 Fragment 삭제
 		return true;
@@ -122,7 +129,7 @@ void GameStateApplier::ApplyPlayerPhysics_UEClient(SD_GameState* gameState, cons
 		class UActorInputSyncComponent* pawnSyncComp = player->GetInputSyncComp();
 		if (!player->IsPuppet() && pawnSyncComp)
 		{
-			pawnSyncComp->ReapplyLocalInputAfter(gameState->GameStateTick); // 패킷 틱이 아닌 GameState 틱임에 유의
+			pawnSyncComp->ReapplyLocalInputAfter(gameState->GameStateTick);
 		}
 	}
 }

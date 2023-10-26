@@ -263,6 +263,23 @@ void ANetHandler::ProcessRecv_UEClient(float DeltaTime)
 		Session->BufManager->RecvPool->PushBuffer(MoveTemp(RecvPending));
 		RecvPending = nullptr;
 	}
+	OnProcessRecvFinish_UEClient(DeltaTime);
+}
+
+void ANetHandler::OnProcessRecvFinish_UEClient(float DeltaTime)
+{
+	APlayerPawn* player = GetRovenhellGameInstance()->GetPlayerOfOwner(GetSessionShared()->GetSessionId());
+	if (player && player->GetInputSyncComp())
+	{
+		// 중요: inputHistory 커서를 Recv가 다 끝난 후 움직인다
+		// 반드시 ReapplyLocalInput 다음에 움직여줘야 하기 때문인데,
+		// 현재 테일(idx 70)에 인풋 정보 추가 -> Reapply에서 tail(70)을 read -> idx 1 증가
+		// 의 순서로 로직이 동작하는데, 만약 테일에 인풋 정보를 추가하자마자 idx를 1 증가시키면
+		// reapply 시점에 tail이 71이 되는데 이 값에는 아직 인풋 정보가 들어가지 않은, 즉 실질적으로는 InputHead 정보이기 때문에
+		// GameState의 Tick 정보와 비교할 때 잘못된 결과가 나오게 된다
+		player->GetInputSyncComp()->AdjustInputHistoryCursor();
+	}
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("내 틱%i, 마지막수신스테이트틱%i"), GetRovenhellGameInstance()->TickCounter->GetTick(), GetRovenhellGameInstance()->TickCounter->GetLastUETick()));
 }
 
 void ANetHandler::StartingNewGameTick_UEServer()

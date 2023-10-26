@@ -28,20 +28,26 @@ bool MiddlemanPacketApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, class AN
 	{
 	    case PacketType::SESSION_INFO:
 	    {
-		    applied = ApplySessionInfo(packet, netHandler);
+		    applied = ApplySessionInfo(packet, netHandler); // 클라, 서버 동일
 		    break;
 	    }
         case PacketType::SESSION_CONNECTED:
         {
-            // 어떤 클라이언트의 연결 알림은 오직 로직 서버만 수신함
-            // 그 후 로직 서버가 접속을 나머지 클라이언트에게 알림
-            // 이는 로직서버에서 전처리를 한 후 (플레이어의 물리 세계와의 상호작용 이후) 최초 상태를 모든 클라이언트에게 발송하는 것이 안전하기 때문임.
-            applied = ApplySessionConnection(packet, netHandler);
+            if (netHandler->GetHostType() == HostTypeEnum::LOGIC_SERVER || netHandler->GetHostType() == HostTypeEnum::LOGIC_SERVER_HEADLESS)
+            {
+                // 어떤 클라이언트의 연결 알림은 오직 로직 서버만 수신함
+                // 그 후 로직 서버가 접속을 나머지 클라이언트에게 알림
+                // 이는 로직서버에서 전처리를 한 후 (플레이어의 물리 세계와의 상호작용 이후) 최초 상태를 모든 클라이언트에게 발송하는 것이 안전하기 때문임.
+                applied = ApplySessionConnection_UEServer(packet, netHandler);
+            }
             break;
         }
         case PacketType::SESSION_DISCONNECTED:
         {
-            applied = ApplySessionDisconnection(packet, netHandler);
+            if (netHandler->GetHostType() == HostTypeEnum::LOGIC_SERVER || netHandler->GetHostType() == HostTypeEnum::LOGIC_SERVER_HEADLESS)
+            {
+                applied = ApplySessionDisconnection_UEServer(packet, netHandler);
+            }
             break;
         }
 	    default:
@@ -90,7 +96,7 @@ bool MiddlemanPacketApplier::ApplySessionInfo(TSharedPtr<RecvBuffer> packet, ANe
     return true;
 }
 
-bool MiddlemanPacketApplier::ApplySessionConnection(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
+bool MiddlemanPacketApplier::ApplySessionConnection_UEServer(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
 {
     // 클라이언트 세션 추가
     uint16 clientSessionId = packet->GetHeader()->senderId;
@@ -107,7 +113,7 @@ bool MiddlemanPacketApplier::ApplySessionConnection(TSharedPtr<RecvBuffer> packe
     return false;
 }
 
-bool MiddlemanPacketApplier::ApplySessionDisconnection(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
+bool MiddlemanPacketApplier::ApplySessionDisconnection_UEServer(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
 {
     // 클라이언트 세션 추가
     uint16 clientSessionId = packet->GetHeader()->senderId;
@@ -122,17 +128,5 @@ bool MiddlemanPacketApplier::ApplySessionDisconnection(TSharedPtr<RecvBuffer> pa
         return netSpawner->Remove(player);
     }
     UE_LOG(LogTemp, Error, TEXT("NetSpawner를 찾지 못했습니다."));
-    return false;
-}
-
-bool MiddlemanPacketApplier::ApplySessionDisconnection_UEClient(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
-{
-    // TODO: 현재는 클라, 서버 둘다 처리가 동일하므로 굳이 이 함수를 쓸 필요가 없음
-    // 추후 필요에 따라 사용할 것
-    return false;
-}
-
-bool MiddlemanPacketApplier::ApplySessionDisconnection_UEServer(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
-{
     return false;
 }

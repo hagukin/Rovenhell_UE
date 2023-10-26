@@ -26,6 +26,8 @@ public:
 	const uint32 GetTick(); // 서버: True game tick 반환; 클라: 서버 틱과 동기화된 Fake game tick 반환
 	const uint32 GetLocalTick() { return TotalTickCount; } // 이 호스트에서 몇 틱이 흘렀는지를 반환
 	const float GetDelta() { return lastDelta; }
+	const uint32 GetLastUETick() { return LastUETick; }
+	const uint32 GetServerTick() { return ServerTick; }
 	void SetServerTick_UEClient(uint32 tick);
 
 public:

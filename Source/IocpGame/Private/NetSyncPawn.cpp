@@ -18,6 +18,7 @@ ANetSyncPawn::ANetSyncPawn()
 
 	// 레플리케이션 해제
 	bReplicates = false;
+	SetReplicateMovement(false);
 }
 
 // Called when the game starts or when spawned

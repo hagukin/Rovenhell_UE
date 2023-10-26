@@ -28,13 +28,18 @@ void UActorInputSyncComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 	return;
 }
 
-void UActorInputSyncComponent::ApplyInput(const LocalInputs& input)
+void UActorInputSyncComponent::ReapplyLocalInput(const LocalInputs& input)
 {
 	if (APlayerPawn* player = Cast<APlayerPawn>(GetOwner()))
 	{
 		if (input.ActionType == ActionTypeEnum::MOVE)
 		{
-			player->Move(input.Value, input.DeltaTime);
+			FVector prev = player->GetActorLocation();
+			player->SetActorRotation(input.PlayerFacingDirection.Rotation()); // 우선 인풋 시점의 방향으로 회전시킨다
+			Cast<UNetPlayerMovementComponent>(player->GetMovementComponent())->ApplySingleMoveInputData({ input.Value, input.DeltaTime }, input.PlayerFacingDirection); // 인풋 시점의 플레이어 방향 전달
+
+			DrawDebugLine(GetWorld(), prev, player->GetActorLocation(), FColor(255, 255, 0), true);
+			DrawDebugSphere(GetWorld(), player->GetActorLocation(), 5, 1, FColor(255, 255, 0), true);
 		}
 	}
 	return;
@@ -42,11 +47,9 @@ void UActorInputSyncComponent::ApplyInput(const LocalInputs& input)
 
 void UActorInputSyncComponent::ReapplyLocalInputAfter(uint32 tick)
 {
-	// [서버에서 수신받은 시점의 틱, 기록된 마지막 인풋 틱] 범위에 해당하는 인풋들을 재처리한다
-	if (tick >= InputsHistory[InputTail].InputTick)
+	if (tick >= InputsHistory[InputTail].InputTick) // >=
 	{
-		// 서버 틱이 클라이언트 인풋 히스토리의 가장 마지막 틱보다 같거나 클 경우 인풋 재처리를 진행하지 않는다
-		return;
+		return; // 클라이언트 framerate가 서버보다 낮고 네트워크 전송시간이 아주 빠를 경우 발생할 수 있다
 	}
 
 	int applyStartIndex = InputHead;
@@ -62,13 +65,13 @@ void UActorInputSyncComponent::ReapplyLocalInputAfter(uint32 tick)
 	// applyStartIndex 인덱스부터 Tail까지를 순회하며 인풋들을 적용한다
 	for (int i = applyStartIndex; i != InputTail; i = (i + 1) % MAX_INPUTS_HISTORY_SIZE)
 	{
-		ApplyInput(InputsHistory[i]);
+		ReapplyLocalInput(InputsHistory[i]);
 	}
 }
 
-void UActorInputSyncComponent::AddInputsInfoAndMoveOne(ActionTypeEnum actionType, const FInputActionValue& Value, float deltaTime, uint32 tick)
+void UActorInputSyncComponent::AddInputsInfo(ActionTypeEnum actionType, const FInputActionValue& Value, float deltaTime, uint32 tick, FVector PlayerFacingDirection)
 {
-	LocalInputs input = { actionType, (int)Value.GetValueType(), Value.Get<FVector>(), deltaTime, tick };
+	LocalInputs input = { actionType, (int)Value.GetValueType(), Value.Get<FVector>(), deltaTime, tick, PlayerFacingDirection };
 	InputsHistory[InputTail] = input;
-	MoveOneInputsHistoryCursor();
+	bShouldMoveCursor = true;
 }

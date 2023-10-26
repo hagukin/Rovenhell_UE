@@ -58,8 +58,8 @@ bool UActorPhysicsSyncComponent::IsActorInSyncWith(const FTransform& Transform)
 void UActorPhysicsSyncComponent::AdjustActorPhysics(const FTransform& Transform)
 {
 	// 디버깅용
-	/*DrawDebugPoint(GetWorld(), GetOwner()->GetTransform().GetLocation(), 5, FColor(255, 0, 0), true, 5.0);
-	DrawDebugPoint(GetWorld(), Transform.GetLocation(), 5, FColor(0, 255, 0), true, 5.0);*/
+	/*DrawDebugPoint(GetWorld(), GetOwner()->GetTransform().GetLocation(), 5, FColor(255, 0, 0), true, 5.0);*/
+	DrawDebugPoint(GetWorld(), Transform.GetLocation(), 5, FColor(0, 0, 255), true);
 
 	// 마지막으로 수신한 서버측 위치로 이동한다
 	GetOwner()->SetActorTransform(Transform, false, nullptr, ETeleportType::None);
