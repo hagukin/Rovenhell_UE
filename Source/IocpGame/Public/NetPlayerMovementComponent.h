@@ -71,8 +71,8 @@ private:
 	float MoveStatIncrementPerInput = 25.0f; // 인풋 한 번당 증가하는 양
 	float MoveStatDecrementPerTick = 25.0f; // 인풋이 없었을 경우 1틱 당 감소하는 양
 
-	// 애니메이션 싱크
-	int MoveInputCountThisTick = 0; // 이번 틱 동안 처리한 인풋들의 개수; 서버에서 클라와 애니메이션 Blendspace를 싱킹하기 위해 사용한다.
+	//// 인풋
+	int MoveInputCountThisTick = 0; // 이번 틱 동안 처리한 인풋들의 개수; 서버에서 클라와 애니메이션 Blendspace를 싱킹 및 물리 싱킹에 사용
 	float MoveInputDeltaTimeSumThisTick = 0.0f; // 이번 틱 동안 처리한 인풋들의 델타타임의 합; 서버가 framerate와 무관하게 애니메이션을 클라와 동일하게 처리하기 위해 사용한다
 
 	//// 회전

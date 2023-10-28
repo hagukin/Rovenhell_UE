@@ -10,8 +10,8 @@ ANetSyncPawn::ANetSyncPawn()
  	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	SceneComp = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComp"));
-	SetRootComponent(SceneComp);
+	BoxComp = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComp"));
+	SetRootComponent(BoxComp);
 
 	PhysicsSyncComp = CreateDefaultSubobject<UActorPhysicsSyncComponent>(TEXT("PhysicsSyncComp"));
 	this->AddOwnedComponent(PhysicsSyncComp);
@@ -25,7 +25,7 @@ ANetSyncPawn::ANetSyncPawn()
 void ANetSyncPawn::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	// NetHandler 레퍼런스 가져오기
 	AActor* temp = UGameplayStatics::GetActorOfClass(GetWorld(), ANetHandler::StaticClass());
 	if (!temp)

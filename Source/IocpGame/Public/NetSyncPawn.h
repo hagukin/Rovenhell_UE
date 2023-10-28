@@ -40,7 +40,7 @@ public:
 	//// 컴포넌트
 	// 루트
 	UPROPERTY(EditAnywhere)
-	USceneComponent* SceneComp;
+	USceneComponent* BoxComp;
 
 	// 네트워크 싱크
 	UActorPhysicsSyncComponent* PhysicsSyncComp;

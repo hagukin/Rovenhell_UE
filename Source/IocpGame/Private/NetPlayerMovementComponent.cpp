@@ -19,10 +19,10 @@ void UNetPlayerMovementComponent::TickComponent(float DeltaTime, ELevelTick Tick
     // 각 인풋별로 발송받은 델타 타임을 적용해 연산한다.
     for (const MoveInputData& DataPerInput : MoveDatas)
     {
-        ApplySingleMoveInputData(DataPerInput);
-
         MoveInputDeltaTimeSumThisTick += DataPerInput.DeltaTime;
         MoveInputCountThisTick++;
+
+        ApplySingleMoveInputData(DataPerInput);
     }
 
     EndTick(DeltaTime);
@@ -86,15 +86,19 @@ void UNetPlayerMovementComponent::ApplySingleMoveInputData(const MoveInputData& 
 
 void UNetPlayerMovementComponent::ApplySingleMoveInputData(const MoveInputData& moveInputData, FVector CustomPlayerFacingDirection)
 {
+    // 물리연산
+    if (MoveInputCountThisTick > 1) // 2번째 인풋부터 연산 적용
+    {
+        UE_LOG(LogTemp, Log, TEXT("인풋 2회 이상 감지됨"));
+        UNetPawnMovementComponent::ApplyNetPhysics(moveInputData.DeltaTime);
+    }
+
     // 이동
     ApplyMovement(CustomPlayerFacingDirection, moveInputData.DeltaTime);
 
     // 회전
     this->DesiredDirection = moveInputData.MoveVector; // 인풋 방향
     ApplyRotation(CustomPlayerFacingDirection, moveInputData.DeltaTime);
-
-    // 중력
-    // TODO
 }
 
 APlayerPawn* UNetPlayerMovementComponent::GetPlayer()
