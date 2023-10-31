@@ -6,6 +6,8 @@
 #include "CoreMinimal.h"
 #include "PacketApplier.h"
 
+class ANetHandler;
+
 /**
  * 
  */
@@ -16,5 +18,5 @@ public:
 	virtual ~ChatPacketApplier();
 
 	bool Init(TSharedPtr<NetSession> session, UGameInstance* gameInstance);
-	bool ApplyPacket(TSharedPtr<RecvBuffer> packet, class ANetHandler* netHandler) override;
+	bool ApplyPacket(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler) override;
 };
