@@ -61,6 +61,19 @@ void ANetSyncPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 void ANetSyncPawn::Puppetfy()
 {
 	bIsPuppet = true;
+
+	// 피직스 싱크 컴포넌트 삭제
+	// 피직스 싱크 컴포넌트는 이 호스트에서 서버보다 연산을 앞서나가는 경우(플레이어의 인풋을 먼저 반영하고 서버와 오차 발생시 수정하는 상황)에만 사용되며
+	// 호스트 폰이 아닌 경우 오직 서버 state에만 의존하기 때문에 사용 해제해주어야 함
+	PhysicsSyncComp->UnregisterComponent();
+	PhysicsSyncComp->DestroyComponent();
+
+	// Interp 컴포넌트 추가
+	InterpComp = NewObject<UNetPawnInterpComponent>(this, UNetPawnInterpComponent::StaticClass());
+	if (InterpComp)
+	{
+		InterpComp->RegisterComponent();
+	}
 }
 
 bool ANetSyncPawn::SetOwnerSessionId(uint16 id)

@@ -279,7 +279,6 @@ void ANetHandler::OnProcessRecvFinish_UEClient(float DeltaTime)
 		// GameState의 Tick 정보와 비교할 때 잘못된 결과가 나오게 된다
 		player->GetInputSyncComp()->AdjustInputHistoryCursor();
 	}
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("내 틱%i, 마지막수신스테이트틱%i"), GetRovenhellGameInstance()->TickCounter->GetTick(), GetRovenhellGameInstance()->TickCounter->GetLastUETick()));
 }
 
 void ANetHandler::StartingNewGameTick_UEServer()

@@ -7,6 +7,7 @@
 #include "GameFramework/Pawn.h"
 #include "Components/SceneComponent.h"
 #include "ActorPhysicsSyncComponent.h"
+#include "NetPawnInterpComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "NetSyncPawn.generated.h"
 
@@ -30,6 +31,7 @@ public:
 	virtual void Puppetfy(); // 이 호스트가 조작하지 않는 폰의 경우 Puppetfy를 호출해주어야 한다
 
 	UActorPhysicsSyncComponent* GetPhysicsSyncComp() const { return PhysicsSyncComp; }
+	UNetPawnInterpComponent* GetInterpComp() const { return InterpComp; }
 	FORCEINLINE class ANetHandler* GetNetHandler() const { return NetHandler; }
 	void SetNetHandler(class ANetHandler* handler) { NetHandler = handler; }
 	bool SetOwnerSessionId(uint16 id);
@@ -43,7 +45,10 @@ public:
 	USceneComponent* SceneComp;
 
 	// 네트워크 싱크
+	// 호스트 폰일 경우 PhysicsSyncComp 사용
 	UActorPhysicsSyncComponent* PhysicsSyncComp;
+	// Puppet일 경우 InterpComp 사용
+	UNetPawnInterpComponent* InterpComp;
 
 protected:
 	ANetHandler* NetHandler = nullptr;

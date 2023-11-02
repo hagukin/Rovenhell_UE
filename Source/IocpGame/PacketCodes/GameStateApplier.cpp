@@ -90,7 +90,7 @@ void GameStateApplier::ApplyGameState_UEClient(SD_GameState* gameState, ANetHand
 		}
 	}
 
-	// 접속해있는 플레이어들에 대한 처리
+	// 접속해있는 플레이어들(호스트 플레이어 포함)에 대한 처리
 	for (SD_PawnPhysics playerPhysics : gameState->UpdatedPlayerPhysics)
 	{
 		CheckForNewConnection_UEClient(playerPhysics.SessionId, netHandler); // 새로 접속했을 경우 알맞는 처리를 해주고 폰 생성
@@ -118,19 +118,51 @@ void GameStateApplier::ApplyPlayerPhysics_UEClient(SD_GameState* gameState, cons
 		return;
 	}
 
+	if (player->IsPuppet())
+	{
+		return ApplyPlayerPhysicsOfPuppet_UEClient(player, gameState, playerPhysics, netHandler);
+	}
+	else
+	{
+		return ApplyPlayerPhysicsOfHost_UEClient(player, gameState, playerPhysics, netHandler);
+	}
+}
+
+void GameStateApplier::ApplyPlayerPhysicsOfHost_UEClient(APlayerPawn* hostPlayer, SD_GameState* gameState, const SD_PawnPhysics& playerPhysics, ANetHandler* netHandler)
+{
 	// 물리 보정 필요 여부 판정
 	FTransform transform = playerPhysics.GetTransformFromData();
-	if (!player->GetPhysicsSyncComp()->IsActorInSyncWith(transform))
+	if (!hostPlayer->GetPhysicsSyncComp()->IsActorInSyncWith(transform))
 	{
 		// 물리 보정
-		player->GetPhysicsSyncComp()->AdjustActorPhysics(transform);
+		hostPlayer->GetPhysicsSyncComp()->AdjustActorPhysics(transform);
 
-		// 인풋 재처리 (호스트 플레이어에 대해서만)
-		class UActorInputSyncComponent* pawnSyncComp = player->GetInputSyncComp();
-		if (!player->IsPuppet() && pawnSyncComp)
+		// 인풋 재처리
+		UActorInputSyncComponent* pawnSyncComp = hostPlayer->GetInputSyncComp();
+		if (pawnSyncComp)
 		{
 			pawnSyncComp->ReapplyLocalInputAfter(gameState->GameStateTick);
 		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("호스트 플레이어의 인풋 싱크 컴포넌트를 찾을 수 없습니다."));
+		}
+	}
+}
+
+void GameStateApplier::ApplyPlayerPhysicsOfPuppet_UEClient(APlayerPawn* puppetPlayer, SD_GameState* gameState, const SD_PawnPhysics& playerPhysics, ANetHandler* netHandler)
+{
+	// 최신 트랜스폼 정보 추가
+	FTransform transform = playerPhysics.GetTransformFromData();
+	UNetPawnInterpComponent* interpComp = puppetPlayer->GetInterpComp();
+	if (interpComp)
+	{
+		interpComp->AddNewTransform(transform, netHandler->GetRovenhellGameInstance()->TickCounter->GetTick());
+		// 추가된 정보를 기반으로 움직임을 interpolate하는 과정은 해당 컴포넌트 틱에서 처리됨
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("이 퍼펫 플레이어의 인풋 싱크 컴포넌트를 찾을 수 없습니다."));
 	}
 }
 
