@@ -31,6 +31,7 @@ public:
 	// 단 현재 방식으로는 Reflection이 Enum을 감지하지 못하기 때문에 수동으로 값을 입력해야 함
 	UFUNCTION(BlueprintCallable)
 	void SetHostTypeAs(uint8 hostType) { GameExecType->SetHostType((HostTypeEnum)hostType); }
+	HostTypeEnum GetHostType() { return GameExecType->GetHostType(); }
 
 	//// 현재 접속한 세션들의 플레이어 컨트롤러 관리
 	bool AddPlayer(uint16 sessionId, APlayerPawn* pawn);

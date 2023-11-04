@@ -65,8 +65,18 @@ void APlayerPawn::Puppetfy()
 
 	InputSyncComp->UnregisterComponent();
 	InputSyncComp->DestroyComponent();
-
 	GameInputPendings = nullptr;
+
+	// NOTE: MovementComp의 경우 서버 퍼펫은 있어야 하지만 클라 퍼펫은 없어야 함.
+	// 이는 서버는 인풋을 재연산해서 움직임을 처리하고, 클라는 연산 결과를 interp해서 처리하기 때문.
+	// 만약 클라 퍼펫이 MovementComp를 가지게 되는 경우 MovementComp 및 GameStateApplier 양쪽에서 모두 애니메이션에 접근해 State를 수정하게 되므로
+	// 애니메이션이 정상적으로 처리되지 않을 수 있음.
+	HostTypeEnum hostType = GetNetHandler()->GetHostType();
+	if (hostType == HostTypeEnum::CLIENT || hostType == HostTypeEnum::CLIENT_HEADLESS)
+	{
+		MovementComp->UnregisterComponent();
+		MovementComp->DestroyComponent();
+	}
 }
 
 void APlayerPawn::BeginPlay()
@@ -139,22 +149,80 @@ void APlayerPawn::Move_UEServer(const FInputActionValue& Value, float DeltaTime)
 	return;
 }
 
-void APlayerPawn::SetAllAnimStateToFalse()
+void APlayerPawn::SetAllAnimBranchToFalse()
 {
 	bIsIdling = false; 
 	bIsMoving = false;
 }
 
-void APlayerPawn::SetIsIdlingTo(bool value)
+void APlayerPawn::SetAnimBranchToIdling()
 {
-	if (bIsIdling == value) return;
-	SetAllAnimStateToFalse(); // TODO FIXME
-	bIsIdling = value;
+	SetAllAnimBranchToFalse();
+	bIsIdling = true;
 }
 
-void APlayerPawn::SetIsMovingTo(bool value)
+void APlayerPawn::SetAnimBranchToMoving()
 {
-	if (bIsMoving == value) return;
-	SetAllAnimStateToFalse(); // TODO FIXME
-	bIsMoving = value;
+	SetAllAnimBranchToFalse();
+	bIsMoving = true;
+}
+
+void APlayerPawn::SetAnimTo(AnimStateEnum state, float value1D)
+{
+	SetAnimStateTo(state); // state를 먼저 세팅해야 status가 올바르게 적용된다
+	SetAnimStatusTo(value1D);
+}
+
+void APlayerPawn::SetAnimStateTo(AnimStateEnum state)
+{
+	if (state == CurrAnimState) return; // 동일
+
+	// FSM 브랜치
+ 	switch (state)
+	{
+		case AnimStateEnum::MOVING:
+		{
+			SetAnimBranchToMoving();
+			break;
+		}
+		case AnimStateEnum::IDLING:
+		{
+			SetAnimBranchToIdling();
+			break;
+		}
+		default:
+			break;
+	}
+
+	CurrAnimState = state;
+}
+
+void APlayerPawn::SetAnimStatusTo(float value1D)
+{
+	switch (CurrAnimState)
+	{
+		case AnimStateEnum::MOVING:
+		{
+			MovementStatus = value1D;
+			return;
+		}
+	}
+}
+
+float APlayerPawn::GetCurrentAnimStatus()
+{
+	switch (CurrAnimState)
+	{
+		case AnimStateEnum::MOVING:
+		{
+			return MovementStatus;
+		}
+		default:
+			return 0.0f; // blendspace를 사용하지 않는 경우 0.0 반환
+	}
+}
+
+void APlayerPawn::AddMovementStatus(float value)
+{
+	MovementStatus = FMath::Clamp(MovementStatus + value, 0.0f, MaxMovementStatus);
 }

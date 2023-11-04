@@ -14,6 +14,7 @@
 #include "../Enumerations.h"
 #include "NetPlayerMovementComponent.h"
 #include "ActorInputSyncComponent.h"
+#include "Animation/AnimNode_StateMachine.h"
 #include "PlayerPawn.generated.h"
 
 /**
@@ -47,18 +48,22 @@ public:
 	void ClearGameInputPendings() { GameInputPendings->Empty(); }
 
 	// 애니메이션
-	UFUNCTION(BlueprintCallable, Category = "Animation")
-	void SetAllAnimStateToFalse();
-
-	UFUNCTION(BlueprintCallable, Category = "Animation")
-	void SetIsIdlingTo(bool value);
-
-	UFUNCTION(BlueprintCallable, Category = "Animation")
-	void SetIsMovingTo(bool value);
+	void SetAllAnimBranchToFalse();
+	void SetAnimBranchToIdling();
+	void SetAnimBranchToMoving();
+	void SetAnimTo(AnimStateEnum state) { return SetAnimStateTo(state); } // value 수정을 하지 않는다
+	void SetAnimTo(AnimStateEnum state, float value1D);
+	AnimStateEnum GetCurrentAnimState() { return CurrAnimState; }
+	float GetCurrentAnimStatus(); // 현재 AnimState에서 사용중인 blendspace 값을 반환한다
+	void AddMovementStatus(float value); // 음수 더해 뺄셈도 가능
 
 protected:
 	virtual void BeginPlay();
 	virtual void Tick(float DeltaTime) override;
+
+	// 애니메이션
+	void SetAnimStateTo(AnimStateEnum state);
+	void SetAnimStatusTo(float value1D); // NOTE: 추후 2D blendspace 사용 시 추가
 
 public:
 	//// 컴포넌트
@@ -99,12 +104,20 @@ public:
 
 private:
 	//// 애니메이션
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Animation, meta = (AllowPrivateAccess = "true"))
+	AnimStateEnum CurrAnimState = AnimStateEnum::NO_ANIM;
+
+	// blendspace 값들
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
+	float MovementStatus = 0.0f; // 0 초과일 경우 해당 캐릭터가 이동중임을 나타낸다. 이동 애니메이션 blendspace에 사용됨
+	float MaxMovementStatus = 100.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
 	bool bIsMoving = false;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Animation, meta = (AllowPrivateAccess = "true"))
-	bool bIsIdling = true;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
+	bool bIsIdling = false;
 
+private:
 	/* UEClient */
 	TSharedPtr<TArray<SD_GameInput>> GameInputPendings; // 서버로 발송 대기중인 클라이언트이 게임플레이 인풋들
 };

@@ -65,9 +65,7 @@ private:
 	const float FallingTraceDistance = 1e5; // 이 거리만큼 fall 트레이스
 
 	// 이동 애니메이션
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
-	float MovementStatus = 0.0f; // 0 초과일 경우 해당 캐릭터가 이동중임을 나타낸다. 한 번의 이동 입력 시 일정한 값만큼 증가한다
-	float MaxMovementStatus = 100.0f;
+	// PlayerPawn 내의 MovementStatus값을 인풋에 따라 변경한다
 	float MoveStatIncrementPerInput = 25.0f; // 인풋 한 번당 증가하는 양
 	float MoveStatDecrementPerTick = 25.0f; // 인풋이 없었을 경우 1틱 당 감소하는 양
 

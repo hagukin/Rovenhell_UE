@@ -4,6 +4,9 @@
 #include "GameStateApplier.h"
 #include "PlayerPawn.h"
 
+
+#include "Animation/AnimInstance.h" /////////////// TESTING DEBUG TODO FIXME
+
 GameStateApplier::GameStateApplier()
 {
 }
@@ -51,13 +54,6 @@ bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, ANetH
 	// 패킷 순서 검증 (TCP지만 만일의 사태를 대비)
 	if (!netHandler->GetDeserializerShared()->IsCorrectPacket(packet->GetHeader()))
 	{
-		// NOTE: 순서가 꼬이는 경우는 
-		// 1) 멀티스레드 발송과정에서 순서가 섞였을 경우 (이 경우가 빈번할 경우 순서 맞춰주도록 로직 수정이 필요함, 그러나 아직 이런 현상이 관측되지 않으므로 보류)
-		// 2) TCP 발송에서의 불량 패킷
-		// 3) UEServer의 Congestion control로 인해 일부 패킷이 잘려서 발송되었을 경우
-		// 정도가 있을 수 있으며, 이중 3번이 가장 가능성이 높은 경우로, 이때는 그냥 패킷을 무시해주면 된다
-		// 2번은 GameState 패킷의 구조 특성상 현재로써는 모든 패킷을 반드시 받아야 하는게 아니기 때문에 그냥 패킷을 무시하고
-		// 1번의 경우에는 발생한 사례가 없지만 발생한다면 순서를 보정해주는 로직의 작성이 필요하다. TODO
 		netHandler->GetDeserializerShared()->ResetPacketInfo();
 		netHandler->GetDeserializerShared()->Clear(); // 그동안 수신한 버퍼 Fragment 삭제
 		return true;
@@ -91,11 +87,12 @@ void GameStateApplier::ApplyGameState_UEClient(SD_GameState* gameState, ANetHand
 	}
 
 	// 접속해있는 플레이어들(호스트 플레이어 포함)에 대한 처리
-	for (SD_PawnPhysics playerPhysics : gameState->UpdatedPlayerPhysics)
+	for (SD_PlayerState playerState : gameState->UpdatedPlayerStates)
 	{
-		CheckForNewConnection_UEClient(playerPhysics.SessionId, netHandler); // 새로 접속했을 경우 알맞는 처리를 해주고 폰 생성
-		IsPlayerConnected.Add(playerPhysics.SessionId, ConnectionStatus::CONNECTED); // 정보 업데이트 혹은 추가
-		ApplyPlayerPhysics_UEClient(gameState, playerPhysics, netHandler); // 나머지 로직 처리
+		CheckForNewConnection_UEClient(playerState.SessionId, netHandler); // 새로 접속했을 경우 알맞는 처리를 해주고 폰 생성
+		IsPlayerConnected.Add(playerState.SessionId, ConnectionStatus::CONNECTED); // 정보 업데이트 혹은 추가
+		ApplyPlayerPhysics_UEClient(gameState, playerState.SessionId, playerState.PlayerPhysics, netHandler); // 나머지 로직 처리
+		ApplyPlayerAnimation_UEClient(&playerState, netHandler);
 	}
 
 	// 접속 종료된 세션 처리
@@ -109,12 +106,12 @@ void GameStateApplier::ApplyGameState_UEClient(SD_GameState* gameState, ANetHand
 	}
 }
 
-void GameStateApplier::ApplyPlayerPhysics_UEClient(SD_GameState* gameState, const SD_PawnPhysics& playerPhysics, ANetHandler* netHandler)
+void GameStateApplier::ApplyPlayerPhysics_UEClient(SD_GameState* gameState, const uint16 playerSessionId, const SD_PawnPhysics& playerPhysics, ANetHandler* netHandler)
 {
-	APlayerPawn* player = netHandler->GetRovenhellGameInstance()->GetPlayerOfOwner(playerPhysics.SessionId);
+	APlayerPawn* player = netHandler->GetRovenhellGameInstance()->GetPlayerOfOwner(playerSessionId);
 	if (!player)
 	{
-		UE_LOG(LogTemp, Fatal, TEXT("$%i번 세션의 플레이어 폰이 설정되지 않았습니다!"), playerPhysics.SessionId);
+		UE_LOG(LogTemp, Fatal, TEXT("$%i번 세션의 플레이어 폰이 설정되지 않았습니다!"), playerSessionId);
 		return;
 	}
 
@@ -164,6 +161,36 @@ void GameStateApplier::ApplyPlayerPhysicsOfPuppet_UEClient(APlayerPawn* puppetPl
 	{
 		UE_LOG(LogTemp, Warning, TEXT("이 퍼펫 플레이어의 인풋 싱크 컴포넌트를 찾을 수 없습니다."));
 	}
+}
+
+void GameStateApplier::ApplyPlayerAnimation_UEClient(SD_PlayerState* playerState, ANetHandler* netHandler)
+{
+	APlayerPawn* player = netHandler->GetRovenhellGameInstance()->GetPlayerOfOwner(playerState->SessionId);
+	if (!player)
+	{
+		UE_LOG(LogTemp, Fatal, TEXT("$%i번 세션의 플레이어 폰이 설정되지 않았습니다!"), playerState->SessionId);
+		return;
+	}
+
+	if (player->IsPuppet())
+	{
+		return ApplyPlayerAnimationOfPuppet_UEClient(player, playerState, netHandler);
+	}
+	else
+	{
+		return ApplyPlayerAnimationOfHost_UEClient(player, playerState, netHandler);
+	}
+}
+
+void GameStateApplier::ApplyPlayerAnimationOfHost_UEClient(APlayerPawn* hostPlayer, SD_PlayerState* playerState, ANetHandler* netHandler)
+{
+	return; // 호스트 플레이어 애니메이션의 경우 호스트(클라이언트) 처리 결과만 사용함
+}
+
+void GameStateApplier::ApplyPlayerAnimationOfPuppet_UEClient(APlayerPawn* puppetPlayer, SD_PlayerState* playerState, ANetHandler* netHandler)
+{
+	puppetPlayer->SetAnimTo(AnimStateEnum(playerState->AnimState), playerState->AnimStatus1D);
+	return;
 }
 
 void GameStateApplier::OnNewClientConnection_UEClient(uint16 clientSessionId, ANetHandler* netHandler)

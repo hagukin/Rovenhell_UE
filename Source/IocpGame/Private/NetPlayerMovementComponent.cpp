@@ -51,23 +51,23 @@ void UNetPlayerMovementComponent::EndTick(float HostDeltaTime)
     // Movement Status 싱크
     if (MoveInputCountThisTick > 0)
     {
-        MovementStatus = FMath::Clamp(MovementStatus + MoveStatIncrementPerInput * MoveInputCountThisTick, 0, MaxMovementStatus);
+        GetPlayerOwner()->AddMovementStatus(MoveStatIncrementPerInput * MoveInputCountThisTick);
         MoveInputCountThisTick = 0;
     }
     else
     {
-        MovementStatus = FMath::Clamp(MovementStatus - MoveStatDecrementPerTick, 0, MaxMovementStatus);
+        GetPlayerOwner()->AddMovementStatus(-MoveStatDecrementPerTick); // 음수
     }
 
     // 애니메이션 재생 시간 업데이트
     if (MoveInputDeltaTimeSumThisTick > 0.0f)
     {
         MoveInputDeltaTimeSumThisTick = FMath::Max(MoveInputDeltaTimeSumThisTick - HostDeltaTime, 0.0f); // 호스트 틱만큼 줄여나간다
-        GetPlayer()->SetIsMovingTo(true);
+        GetPlayer()->SetAnimTo(AnimStateEnum::MOVING);
     }
     else
     {
-        GetPlayer()->SetIsIdlingTo(true);
+        GetPlayer()->SetAnimTo(AnimStateEnum::IDLING);
     }
 
     // 인풋 초기화

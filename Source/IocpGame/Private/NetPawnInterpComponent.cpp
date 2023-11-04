@@ -33,7 +33,7 @@ void UNetPawnInterpComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		// 클라의 게임 틱 주기보다 서버의 스테이트 발송 주기가 월등히 느릴 경우 일어날 수 있다
 		// 혹은 차이가 크지 않더라도 누적될 경우 일어날 수 있다
 		DeltaTimeMultiplier += DELTATIME_MULTIPLIER_DELTA_ON_QUEUE_OVERFLOW; // 누적 발생 시 배수를 증가시킨다
-		UE_LOG(LogTemp, Warning, TEXT("MovePrediction 큐가 적정 크기를 초과했습니다. (size: %i) 게임서버의 발송 주기가 느려졌을 가능성이 있습니다. 델타타임 배수: %f"), QueueSize, DeltaTimeMultiplier);
+		//UE_LOG(LogTemp, Warning, TEXT("MovePrediction 큐가 적정 크기를 초과했습니다. (size: %i) 게임서버의 발송 주기가 느려졌을 가능성이 있습니다. 델타타임 배수: %f"), QueueSize, DeltaTimeMultiplier);
 	}
 	else
 	{

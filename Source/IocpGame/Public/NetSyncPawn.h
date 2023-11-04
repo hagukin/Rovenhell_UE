@@ -35,7 +35,7 @@ public:
 	FORCEINLINE class ANetHandler* GetNetHandler() const { return NetHandler; }
 	void SetNetHandler(class ANetHandler* handler) { NetHandler = handler; }
 	bool SetOwnerSessionId(uint16 id);
-	uint64 GetOwnerSessionId(uint16 id);
+	uint64 GetOwnerSessionId();
 	bool IsPuppet() { return bIsPuppet; }
 
 public:

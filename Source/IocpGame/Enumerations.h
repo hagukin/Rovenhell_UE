@@ -21,3 +21,10 @@ enum ActionTypeEnum : uint8
 	MOVE,
 	JUMP,
 };
+
+enum AnimStateEnum : uint8
+{
+	NO_ANIM,
+	IDLING,
+	MOVING,
+};

@@ -87,11 +87,11 @@ bool ANetSyncPawn::SetOwnerSessionId(uint16 id)
 	return true;
 }
 
-uint64 ANetSyncPawn::GetOwnerSessionId(uint16 id)
+uint64 ANetSyncPawn::GetOwnerSessionId()
 {
 	if (!SessionIdInitialized)
 	{
-		UE_LOG(LogTemp, Error, TEXT("이 플레이어에게 세션 id가 할당되어 있지 않습니다. 기본값을 반환합니다."));
+		UE_LOG(LogTemp, Error, TEXT("이 NetSyncPawn에게 세션 id가 할당되어 있지 않습니다. 기본값을 반환합니다."));
 	}
 	return OwnerSessionId;
 }

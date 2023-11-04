@@ -433,7 +433,7 @@ SD_GameState* ANetHandler::CreateNewGameStatePacket_UEServer(float DeltaTime)
 	// TODO: 변경된 플레이어에 대해서만 정보를 보내는 것으로 패킷 크기 축소 가능
 	for (const auto& element : GetRovenhellGameInstance()->GetPlayers())
 	{
-		GameState->AddPlayerPhysics(new SD_PawnPhysics(element.Key, element.Value.Get()));
+		GameState->AddPlayerStates(new SD_PlayerState(element.Key, element.Value.Get()));
 	}
 	return GameState;
 }

@@ -8,6 +8,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "../Enumerations.h"
 
+class APlayerPawn;
+
 class SD_Data
 {
 public:
@@ -213,45 +215,37 @@ public:
 };
 
 
-// 단일 플레이어의 물리 정보를 나타낸다
+// 단일 폰의 물리 정보를 나타낸다
 class SD_PawnPhysics : public SD_ActorPhysics
 {
 public:
 	SD_PawnPhysics() {}
 	virtual ~SD_PawnPhysics() {}
-	SD_PawnPhysics(uint16 sessionId, AActor* actor) : SD_ActorPhysics(actor) { SessionId = sessionId; }
-	SD_PawnPhysics(uint16 sessionId, const FTransform& transform) : SD_ActorPhysics(transform)
-	{ 
-		SessionId = sessionId; 
-	}
+	SD_PawnPhysics(AActor* actor) : SD_ActorPhysics(actor) {}
+	SD_PawnPhysics(const FTransform& transform) : SD_ActorPhysics(transform) {}
 
 	friend FArchive& operator<<(FArchive& Archive, SD_PawnPhysics& Data)
 	{
 		Archive << *(SD_ActorPhysics*)&Data; // 피직스 데이터 전달
-		Archive << Data.SessionId;
 		return Archive;
 	}
-
-public:
-	uint16 SessionId = 0;
 };
 
 
-// 단일 플레이어의 PlayerState를 나타낸다
+// 단일 플레이어에 대한 모든 정보들을 나타낸다
 class SD_PlayerState : SD_Data
 {
 public:
 	SD_PlayerState() {}
 	virtual ~SD_PlayerState() {}
-	SD_PlayerState(uint16 sessionId, const AActor& actor) 
-	{
-		SessionId = sessionId;
-		// TODO: Hp 등 각종 정보 전달
-	}
+	SD_PlayerState(uint16 sessionId, APlayerPawn* player);
 
 	friend FArchive& operator<<(FArchive& Archive, SD_PlayerState& Data)
 	{
 		Archive << Data.SessionId;
+		Archive << Data.AnimState;
+		Archive << Data.AnimStatus1D;
+		Archive << Data.PlayerPhysics;
 		return Archive;
 	}
 
@@ -260,6 +254,9 @@ public:
 
 public:
 	uint16 SessionId = 0;
+	uint8 AnimState = AnimStateEnum::NO_ANIM;
+	float AnimStatus1D = 0.0f; // blendspace 싱크를 위해 전송하는 값; 2D blendspace 사용 시 하나 더 추가할 것
+	SD_PawnPhysics PlayerPhysics;
 };
 
 
@@ -283,14 +280,6 @@ public:
 
 		if (Archive.IsLoading())
 		{
-			// 피직스
-			Archive << Data.UpdatedPlayerPhysicsCount;
-			for (uint16 i = 0; i < Data.UpdatedPlayerPhysicsCount; ++i)
-			{
-				Archive << Data.TempPhysics;
-				Data.UpdatedPlayerPhysics.Add(Data.TempPhysics);
-			}
-
 			// 스테이트
 			Archive << Data.UpdatedPlayerStatesCount;
 			for (uint16 i = 0; i < Data.UpdatedPlayerStatesCount; ++i)
@@ -301,14 +290,6 @@ public:
 		}
 		else if (Archive.IsSaving())
 		{
-			// 피직스
-			Data.UpdatedPlayerPhysicsCount = Data.UpdatedPlayerPhysics.Num();
-			Archive << Data.UpdatedPlayerPhysicsCount;
-			for (uint16 i = 0; i < Data.UpdatedPlayerPhysicsCount; ++i)
-			{
-				Archive << Data.UpdatedPlayerPhysics[i];
-			}
-
 			// 스테이트
 			Data.UpdatedPlayerStatesCount = Data.UpdatedPlayerStates.Num();
 			Archive << Data.UpdatedPlayerStatesCount;
@@ -321,12 +302,6 @@ public:
 		return Archive;
 	}
 
-	void AddPlayerPhysics(SD_PawnPhysics* playerPhysics)
-	{
-		UpdatedPlayerPhysics.Add(*playerPhysics);
-		UpdatedPlayerPhysicsCount++;
-	}
-
 	void AddPlayerStates(SD_PlayerState* playerState)
 	{
 		UpdatedPlayerStates.Add(*playerState);
@@ -336,14 +311,9 @@ public:
 	void Serialize(FMemoryWriter& writer) override { writer << *this; }
 	void Deserialize(FMemoryReader& reader) override { reader << *this; }
 public:
-	uint16 UpdatedPlayerPhysicsCount = 0;
-	TArray<SD_PawnPhysics> UpdatedPlayerPhysics; // 접속한 모든 플레이어들의 물리 값; 현재 접속한 모든 플레이어들을 클라이언트와 동기화하기 위해서도 사용됨. 이는 패킷 크기 및 발송빈도를 줄이기 위함
-	SD_PawnPhysics TempPhysics;
-
 	uint16 UpdatedPlayerStatesCount = 0;
-	TArray<SD_PlayerState> UpdatedPlayerStates; // State정보 갱신이 필요한 플레이어들의 State 값
+	TArray<SD_PlayerState> UpdatedPlayerStates; // 접속한 모든 플레이어들의 State; 현재 접속한 플레이어 정보를 동기화하기 위해서도 사용됨.
 	SD_PlayerState TempState;
-	// TODO: 플레이어 id가 중복해서 들어가지 않게 피직스와 스테이트를 합치고, 대신 플레이어 접속 싱크를 맞추는 용도로 접속 플레이어 아이디를 담은 별도의 어레이를 만들어주면 지금보다 최적화 가능
 	// TODO: 플레이어 외의 액터들도 피직스 정보 싱크 맞도록 고유 id 부여
 
 	uint32 GameStateTick = 0; // 이 게임스테이트 패킷이 담고있는 시점이 몇 틱인지 (서버)
