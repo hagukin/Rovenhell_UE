@@ -45,9 +45,9 @@ void UActorInputSyncComponent::ReapplyLocalInput(const LocalInputs& input)
 	return;
 }
 
-void UActorInputSyncComponent::ReapplyLocalInputAfter(uint32 tick)
+void UActorInputSyncComponent::ReapplyLocalInputAfter(float time)
 {
-	if (tick >= InputsHistory[InputTail].InputTick) // >=
+	if (time > InputsHistory[InputTail].InputTime)
 	{
 		return; // 클라이언트 framerate가 서버보다 낮고 네트워크 전송시간이 아주 빠를 경우 발생할 수 있다
 	}
@@ -55,7 +55,7 @@ void UActorInputSyncComponent::ReapplyLocalInputAfter(uint32 tick)
 	int applyStartIndex = InputHead;
 	for (int addIdx = 0; addIdx < MAX_INPUTS_HISTORY_SIZE; ++addIdx)
 	{
-		if (InputsHistory[(InputHead + addIdx) % MAX_INPUTS_HISTORY_SIZE].InputTick > tick)
+		if (InputsHistory[(InputHead + addIdx) % MAX_INPUTS_HISTORY_SIZE].InputTime >= time)
 		{
 			applyStartIndex = (InputHead + addIdx) % MAX_INPUTS_HISTORY_SIZE;
 			break;
@@ -69,9 +69,9 @@ void UActorInputSyncComponent::ReapplyLocalInputAfter(uint32 tick)
 	}
 }
 
-void UActorInputSyncComponent::AddInputsInfo(ActionTypeEnum actionType, const FInputActionValue& Value, float deltaTime, uint32 tick, FVector PlayerFacingDirection)
+void UActorInputSyncComponent::AddInputsInfo(ActionTypeEnum actionType, const FInputActionValue& Value, float deltaTime, float time, FVector PlayerFacingDirection)
 {
-	LocalInputs input = { actionType, (int)Value.GetValueType(), Value.Get<FVector>(), deltaTime, tick, PlayerFacingDirection };
+	LocalInputs input = { actionType, (int)Value.GetValueType(), Value.Get<FVector>(), deltaTime, time, PlayerFacingDirection };
 	InputsHistory[InputTail] = input;
 	bShouldMoveCursor = true;
 }

@@ -20,6 +20,7 @@
 #include "NetHandler.generated.h"
 
 #define DESIRED_SERVER_SEND_CYCLE_PER_PACKET 0.125f // per fragment가 아님
+#define DESIRED_CLIENT_SEND_CYCLE_PER_PACKET 0.1f
 #define MIN_FRAGMENTS_SEND_COUNT_PER_TICK 1
 #define MAX_FRAGMENTS_SEND_COUNT_PER_TICK 10 // Congestion control
 
@@ -101,5 +102,5 @@ private:
 	uint8 FragmentSendStart = 1; // 1번부터 시작
 	float FragmentSendCycleTime = 0.0f; // fragment 1개 발송 주기 (s)
 	float TimePassedSinceLastFragmentSend = 0.0f; // 현재 발송중인 패킷(fragment들의 합)에 소비된 DeltaTime 누적 
-	uint32 PacketTick = 0; // 이 패킷 데이터를 추출했을 시점에서의 서버의 틱; 추후 fragment를 다른 틱에서 보내더라도 이 값은 동일하게 유지되어야 함.
+	float PacketTimestamp = 0; // 이 패킷 데이터를 추출했을 시점에서의 서버 시간; 추후 fragment를 다른 틱에서 보내더라도 이 값은 동일하게 유지되어야 함.
 };

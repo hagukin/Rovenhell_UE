@@ -129,7 +129,7 @@ void SendBuffer::SetDefaultHeader()
 	((PacketHeader*)Buffer)->senderId = 0;
 	((PacketHeader*)Buffer)->protocol = PacketProtocol::NO_PROTOCOL;
 	((PacketHeader*)Buffer)->type = PacketType::DEFAULT;
-	((PacketHeader*)Buffer)->senderTick = 0;
+	((PacketHeader*)Buffer)->hostTime = 0.0f;
 
 	BufferSize = sizeof(PacketHeader); // += 가 아니라 = 임에 유의
 }

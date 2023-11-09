@@ -58,7 +58,7 @@ void UNetPawnInterpComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	}
 }
 
-void UNetPawnInterpComponent::AddNewTransform(FTransform transform, uint32 tick)
+void UNetPawnInterpComponent::AddNewTransform(FTransform transform)
 {
 	if (!bHasBegunMovePrediction) // 최초 transform 추가 시
 	{
@@ -66,14 +66,14 @@ void UNetPawnInterpComponent::AddNewTransform(FTransform transform, uint32 tick)
 		bHasBegunMovePrediction = true;
 		return;
 	}
-	AddMovePrediction(pendingTransform, transform, FTimespan::FromSeconds(TimeSinceLastNewTransform), tick);
+	AddMovePrediction(pendingTransform, transform, FTimespan::FromSeconds(TimeSinceLastNewTransform));
 	TimeSinceLastNewTransform = 0.0f;
 	pendingTransform = transform; // 이번 MovePrediction의 종착지는 다음번 MovePrediction의 시작점임
 }
 
-void UNetPawnInterpComponent::AddMovePrediction(FTransform from, FTransform to, FTimespan timespan, uint32 tick)
+void UNetPawnInterpComponent::AddMovePrediction(FTransform from, FTransform to, FTimespan timespan)
 {
-	TSharedPtr<MovePrediction> newMovePred = MakeShared<MovePrediction>(from, to, timespan, tick);
+	TSharedPtr<MovePrediction> newMovePred = MakeShared<MovePrediction>(from, to, timespan);
 	MovePredictionQueue.Enqueue(newMovePred);
 	QueueSize++;
 	return;
@@ -118,12 +118,11 @@ MovePrediction::MovePrediction()
 {
 }
 
-MovePrediction::MovePrediction(FTransform from, FTransform to, FTimespan timespan, uint32 tick)
+MovePrediction::MovePrediction(FTransform from, FTransform to, FTimespan timespan)
 {
 	this->From = from;
 	this->To = to;
 	this->Timespan = timespan;
-	this->Tick = tick;
 }
 
 float MovePrediction::GetAlphaFromDeltaTime(const float& DeltaTime)

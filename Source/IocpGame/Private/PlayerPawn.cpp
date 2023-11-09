@@ -120,13 +120,13 @@ void APlayerPawn::Move_Entry(const FInputActionValue& Value)
 		case HostTypeEnum::CLIENT:
 		case HostTypeEnum::CLIENT_HEADLESS:
 		{
-			Move_UEClient(Value, Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta()); // 클라이언트 사이드 연산에서는 현재 호스트 델타 사용
+			Move_UEClient(Value, Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta()); // Host deltatime 사용
 			break;
 		}
 		case HostTypeEnum::LOGIC_SERVER:
 		case HostTypeEnum::LOGIC_SERVER_HEADLESS:
 		{
-			Move_UEServer(Value, Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta()); // 디버깅 목적으로 서버에서 키 인풋으로 직접 움직이는 경우는 서버 호스트 델타 사용
+			Move_UEServer(Value, Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetDelta()); // 서버에서 디버깅 목적으로 호스트 폰을 움직이는 경우 Host deltatime 사용
 			break;
 		}
 		case HostTypeEnum::NONE:
@@ -138,9 +138,10 @@ void APlayerPawn::Move_Entry(const FInputActionValue& Value)
 void APlayerPawn::Move_UEClient(const FInputActionValue& Value, float DeltaTime)
 {
 	Move(Value, DeltaTime);
-	uint32 tick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
-	GameInputPendings->Add(SD_GameInput(ActionTypeEnum::MOVE, Value, DeltaTime, tick));
-	GetInputSyncComp()->AddInputsInfo(ActionTypeEnum::MOVE, Value, DeltaTime, tick, GetMovementComponent()->GetCurrentFacingDirection()); // 커서 이동은 나중에 해준다
+	float time = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTime(GetWorld());
+	float adjustedTime = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetAdjustedTime_UEClient(GetWorld(), INPUT_TIME_ADJUSTMENT);
+	GameInputPendings->Add(SD_GameInput(ActionTypeEnum::MOVE, Value, DeltaTime, time));
+	GetInputSyncComp()->AddInputsInfo(ActionTypeEnum::MOVE, Value, DeltaTime, adjustedTime/*인풋 보정을 위해 서버시간보다 앞서있는 시간을 전달*/, GetMovementComponent()->GetCurrentFacingDirection()); // 커서 이동은 나중에 해준다
 }
 
 void APlayerPawn::Move_UEServer(const FInputActionValue& Value, float DeltaTime)

@@ -22,7 +22,7 @@ class MovePrediction
 {
 public:
 	MovePrediction();
-	MovePrediction(FTransform from, FTransform to, FTimespan timespan, uint32 tick);
+	MovePrediction(FTransform from, FTransform to, FTimespan timespan);
 
 	float GetAlphaFromDeltaTime(const float& DeltaTime); // point a에서 b까지의 timespan 중 DeltaTime이 차지하는 alpha가 얼마인지 반환
 	float GetDeltaTimeFromAlpha(const float& alpha); // 역연산
@@ -34,7 +34,6 @@ public:
 	FTransform To;
 	float Alpha = 0.0f;
 	FTimespan Timespan;
-	uint32 Tick;
 };
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -51,13 +50,13 @@ protected:
 
 public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-	void AddNewTransform(FTransform transform, uint32 tick); // 새 최신 transform 정보를 수신받았을 경우 이 함수를 호출해 추가해준다
+	void AddNewTransform(FTransform transform); // 새 최신 transform 정보를 수신받았을 경우 이 함수를 호출해 추가해준다
 
 private:
 	float ApplyMovePrediction(float DeltaTime); // 입력받은 Move prediction 객체를 DeltaTime만큼 처리한다. 처리가 완료되었다면 소비하고 남은 DeltaTime을 반환한다.
 	TSharedPtr<MovePrediction> GetCurrMovePrediction(); // 현재 시점에 처리해야 할 Move prediction 객체를 반환한다
 	void SetPuppetTransform(const FTransform& transform); // 컴포넌트 오너에 transform을 적용한다
-	void AddMovePrediction(FTransform from, FTransform to, FTimespan timespan, uint32 tick); // 새 movement interp를 큐에 추가한다
+	void AddMovePrediction(FTransform from, FTransform to, FTimespan timespan); // 새 movement interp를 큐에 추가한다
 
 private:
 	TQueue<TSharedPtr<MovePrediction>> MovePredictionQueue; // NOTE: Pop이나 Enqueue 시 QueueCount 별도로 관리 필요

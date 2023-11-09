@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "InputActionValue.h"
+#include "Containers/BitArray.h"
 #include "Components/PrimitiveComponent.h"
 #include "../Enumerations.h"
 
@@ -40,25 +41,122 @@ public:
 };
 
 
+#define MAX_COMPRESSED_COORDINATE_RANGE_PER_DIRECTION 100000.0f // (cm); 100000일 경우 +-1km 표현 가능함을 의미
+#define COMPRESSED_COORDINATE_PRECISION 5.12f // (cm당 등분 개수); e.g. 1m를 512 등분 -> 5.12f
+#define COMPRESSED_COORDINATE_BIT_SIZE 20 // log2 (max range / precision)을 ceil한 값에 1 더한 값(부호비트) = 혹은 log2 (max range*2 / precision)을 ceil한 값
+
+class CompressedCoord
+{
+	/*
+	2mm 정밀도 = 1m 당 512 values(2^9)
+
+	X,Y,Z축:
+	+-1km 범위 = 2000m 범위 = 512 * 2000 values = log2(1024000) ~= 20 bits
+	맵 2km * 2km * 2km 표현 가능
+
+	NOTE: 필요 시 Z축은 더 범위를 좁힐 수 있음
+	*/
+public:
+	CompressedCoord()
+	{
+		bitArray.Init(false, COMPRESSED_COORDINATE_BIT_SIZE);
+	}
+
+	bool CompressCoordinate(float in)
+	{
+		if (in > MAX_COMPRESSED_COORDINATE_RANGE_PER_DIRECTION || in < -MAX_COMPRESSED_COORDINATE_RANGE_PER_DIRECTION)
+		{
+			UE_LOG(LogTemp, Error, TEXT("%f: 압축 가능한 좌표 범위를 벗어났습니다!"), in);
+			return false;
+		}
+
+		uint32 count = (FMath::Abs(in) * COMPRESSED_COORDINATE_PRECISION); // 1000m (100,000cm)일 경우 512,000 저장
+		bool msb = (in < -SMALL_NUMBER) ? 1 : 0;
+
+		bitArray[0] = msb;
+		for (uint32 i = 1; i < COMPRESSED_COORDINATE_BIT_SIZE; ++i)
+		{
+			bitArray[i] = count & (1 << (COMPRESSED_COORDINATE_BIT_SIZE - 1 - i)); // bitarray로 복사
+		}
+		return true;
+	}
+
+	float DecompressCoordinate() const
+	{
+		bool msb = bitArray[0];
+		uint32 count = 0;
+		for (uint32 i = 1; i < COMPRESSED_COORDINATE_BIT_SIZE; ++i)
+		{
+			count |= (bitArray[i] << (COMPRESSED_COORDINATE_BIT_SIZE - 1 - i));
+		}
+		float decompressed = (float)count / COMPRESSED_COORDINATE_PRECISION;
+		return decompressed;
+	}
+
+	friend FArchive& operator<<(FArchive& Archive, CompressedCoord& Data)
+	{
+		Archive << Data.bitArray;
+		return Archive;
+	}
+
+public:
+	TBitArray<FDefaultBitArrayAllocator> bitArray;
+};
+
+class CompressedLoc
+{
+public:
+	bool CompressLocation(const FVector in)
+	{
+		bool succeeded = true;
+		succeeded &= this->X.CompressCoordinate(in.X);
+		succeeded &= this->Y.CompressCoordinate(in.Y);
+		succeeded &= this->Z.CompressCoordinate(in.Z);
+		return succeeded;
+	}
+
+	FVector DecompressLocation() const
+	{
+		FVector decompressed;
+		decompressed.X = X.DecompressCoordinate();
+		decompressed.Y = Y.DecompressCoordinate();
+		decompressed.Z = Z.DecompressCoordinate();
+		return decompressed;
+	}
+
+	friend FArchive& operator<<(FArchive& Archive, CompressedLoc& Data)
+	{
+		Archive << Data.X;
+		Archive << Data.Y;
+		Archive << Data.Z;
+		return Archive;
+	}
+
+public:
+	CompressedCoord X;
+	CompressedCoord Y;
+	CompressedCoord Z;
+};
+
 class SD_ActorPhysics : SD_Data
 {
 public:
 	void SetDataFromTransform(const FTransform& transform)
 	{
-		LocX = transform.GetLocation().X;
-		LocY = transform.GetLocation().Y;
-		LocZ = transform.GetLocation().Z;
+		CompressedLocation.CompressLocation(transform.GetLocation());
 
-		RotX = transform.GetRotation().Vector().X;
-		RotY = transform.GetRotation().Vector().Y;
-		RotZ = transform.GetRotation().Vector().Z;
+		const FVector& Vec = transform.GetRotation().Vector();
+		RotX = Vec.X;
+		RotY = Vec.Y;
+		RotZ = Vec.Z;
 		return;
 	}
 
 	FTransform GetTransformFromData() const
 	{
 		FTransform transform;
-		transform.SetLocation(FVector(LocX, LocY, LocZ));
+		FVector location = CompressedLocation.DecompressLocation();
+		transform.SetLocation(location);
 		transform.SetRotation(FVector(RotX, RotY, RotZ).ToOrientationQuat());
 		return transform;
 	}
@@ -72,12 +170,11 @@ public:
 	{
 		SetDataFromTransform(transform);
 	}
+	virtual ~SD_ActorPhysics() {}
 
 	friend FArchive& operator<<(FArchive& Archive, SD_ActorPhysics& Data)
 	{
-		Archive << Data.LocX;
-		Archive << Data.LocY;
-		Archive << Data.LocZ;
+		Archive << Data.CompressedLocation;
 
 		Archive << Data.RotX;
 		Archive << Data.RotY;
@@ -90,9 +187,10 @@ public:
 	void Deserialize(FMemoryReader& reader) override { reader << *this; }
 
 public:
-	float LocX, LocY, LocZ;
+	CompressedLoc CompressedLocation;
 	float RotX, RotY, RotZ;
 };
+
 
 // InputAction과 InputActionValue에 대한 정보를 담는다
 class SD_GameInput : SD_Data
@@ -107,11 +205,11 @@ public:
 		return x < -KINDA_SMALL_NUMBER;
 	}
 	SD_GameInput() {}
-	SD_GameInput(ActionTypeEnum actionType, const FInputActionValue& inputValue, float deltaTime, uint32 tick)
+	SD_GameInput(ActionTypeEnum actionType, const FInputActionValue& inputValue, float deltaTime, float time)
 	{
 		ActionType = actionType;
 		DeltaTime = deltaTime;
-		Tick = tick;
+		Time = time;
 		switch (inputValue.GetValueType())
 		{
 			case EInputActionValueType::Axis1D:
@@ -151,7 +249,7 @@ public:
 		Archive << Data.YSign;
 		Archive << Data.ZSign;
 		Archive << Data.DeltaTime;
-		Archive << Data.Tick;
+		Archive << Data.Time;
 		return Archive;
 	}
 
@@ -167,7 +265,7 @@ public:
 	bool YSign = 0;
 	bool ZSign = 0;
 	float DeltaTime = 0.0f; // 서버측 재연산을 위해 필요한 값
-	uint32 Tick = 0; // 이 인풋이 발생한 시점; 인풋을 발생시킨 호스트의 로컬 틱값으로 표현한다.
+	float Time = 0; // 이 인풋이 발생한 시점
 };
 
 
@@ -265,9 +363,9 @@ class SD_GameState : SD_Data
 {
 public:
 	SD_GameState() {}
-	SD_GameState(AGameStateBase* gameState, uint32 gameStateTick)
+	SD_GameState(AGameStateBase* gameState, float gameStateTimestamp)
 	{
-		GameStateTick = gameStateTick;
+		GameStateTimestamp = gameStateTimestamp;
 		// NOTE: 콘텐츠 제작 시 동기화해야 하는 GameState 데이터들을 여기에서 복사해 저장
 		// 현재는 콘텐츠가 없는 관계로 비어있음
 
@@ -276,7 +374,7 @@ public:
 
 	friend FArchive& operator<<(FArchive& Archive, SD_GameState& Data)
 	{
-		Archive << Data.GameStateTick;
+		Archive << Data.GameStateTimestamp;
 
 		if (Archive.IsLoading())
 		{
@@ -316,6 +414,6 @@ public:
 	SD_PlayerState TempState;
 	// TODO: 플레이어 외의 액터들도 피직스 정보 싱크 맞도록 고유 id 부여
 
-	uint32 GameStateTick = 0; // 이 게임스테이트 패킷이 담고있는 시점이 몇 틱인지 (서버)
+	float GameStateTimestamp = 0.0f; // 이 게임스테이트 패킷이 담고있는 시점 (서버)
 	uint32 ProcessedTicksCount = 0;
 };

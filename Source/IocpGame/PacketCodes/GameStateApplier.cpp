@@ -3,9 +3,7 @@
 
 #include "GameStateApplier.h"
 #include "PlayerPawn.h"
-
-
-#include "Animation/AnimInstance.h" /////////////// TESTING DEBUG TODO FIXME
+#include "Animation/AnimInstance.h"
 
 GameStateApplier::GameStateApplier()
 {
@@ -48,8 +46,8 @@ bool GameStateApplier::ApplyPacket(TSharedPtr<RecvBuffer> packet, ANetHandler* n
 
 bool GameStateApplier::ApplyPacket_UEClient(TSharedPtr<RecvBuffer> packet, ANetHandler* netHandler)
 {
-	// 서버 틱과 동기화
-	netHandler->GetRovenhellGameInstance()->TickCounter->SetServerTick_UEClient(packet->GetHeader()->senderTick);
+	// 서버 시간과 동기화
+	netHandler->GetRovenhellGameInstance()->TickCounter->SetServerTime_UEClient(netHandler->GetWorld(), packet->GetHeader()->hostTime);
 
 	// 패킷 순서 검증 (TCP지만 만일의 사태를 대비)
 	if (!netHandler->GetDeserializerShared()->IsCorrectPacket(packet->GetHeader()))
@@ -138,7 +136,7 @@ void GameStateApplier::ApplyPlayerPhysicsOfHost_UEClient(APlayerPawn* hostPlayer
 		UActorInputSyncComponent* pawnSyncComp = hostPlayer->GetInputSyncComp();
 		if (pawnSyncComp)
 		{
-			pawnSyncComp->ReapplyLocalInputAfter(gameState->GameStateTick);
+			pawnSyncComp->ReapplyLocalInputAfter(gameState->GameStateTimestamp);
 		}
 		else
 		{
@@ -154,7 +152,7 @@ void GameStateApplier::ApplyPlayerPhysicsOfPuppet_UEClient(APlayerPawn* puppetPl
 	UNetPawnInterpComponent* interpComp = puppetPlayer->GetInterpComp();
 	if (interpComp)
 	{
-		interpComp->AddNewTransform(transform, netHandler->GetRovenhellGameInstance()->TickCounter->GetTick());
+		interpComp->AddNewTransform(transform);
 		// 추가된 정보를 기반으로 움직임을 interpolate하는 과정은 해당 컴포넌트 틱에서 처리됨
 	}
 	else

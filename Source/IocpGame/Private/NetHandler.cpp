@@ -24,6 +24,9 @@ void ANetHandler::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	// DEBUG
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("time %f, tripTime %f"), GetRovenhellGameInstance()->TickCounter->GetTime(GetWorld()), GetRovenhellGameInstance()->TickCounter->GetPacketTripTime()));
+
 	switch (HostType)
 	{
 		case HostTypeEnum::CLIENT:
@@ -95,7 +98,7 @@ void ANetHandler::Init()
 	{
 		port = 8888;
 		// TODO: HEADLESS 분리
-		//GEngine->GameViewport->bDisableWorldRendering = 1;
+		GEngine->GameViewport->bDisableWorldRendering = 1;
 	}
 	
 	NetAddress serverAddr(TEXT("127.0.0.1"), port); //////// TESTING
@@ -173,7 +176,7 @@ void ANetHandler::InitGameHostType()
 void ANetHandler::Tick_UEClient(float DeltaTime)
 {
 	AccumulatedTickTime += DeltaTime;
-	if (AccumulatedTickTime >= CONSUME_HISTORY_BUFFER_CYCLE) // 인터벌마다 Send
+	if (AccumulatedTickTime >= DESIRED_CLIENT_SEND_CYCLE_PER_PACKET) // 인터벌마다 Send
 	{
 		AccumulatedTickTime = 0;
 		RegisterSend_UEClient(DeltaTime);
@@ -206,7 +209,7 @@ void ANetHandler::RegisterSend_UEClient(float DeltaTime)
 	writeBuf->GetHeader()->senderId = GetSessionShared()->GetSessionId();
 	writeBuf->GetHeader()->protocol = PacketProtocol::CLIENT_ALLOW_MULTIPLE_PER_TICK;
 	writeBuf->GetHeader()->type = PacketType::GAME_INPUT;
-	writeBuf->GetHeader()->senderTick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
+	writeBuf->GetHeader()->hostTime = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTime(GetWorld());
 	Serializer->WriteDataToBuffer(writeBuf, Serializer->Array->GetData(), Serializer->Array->Num());
 	Session->PushSendQueue(writeBuf);
 
@@ -303,11 +306,6 @@ void ANetHandler::Tick_UEServer(float DeltaTime)
 	GetPendingBuffer_UEServer(DeltaTime);
 	ProcessRecv_UEServer(DeltaTime);
 	RegisterSend_UEServer(DeltaTime); // 매 틱마다 x개의 fragment를 발송한다; x는 DeltaTime에 비례한다, 즉 서버가 프레임이 떨어지면 그만큼 단일 틱에 여러 fragment를 보낸다
-
-	// TODO: 여러 fragment를 보내는 게 성능에 더 좋은지 테스트
-	// 이 방식대로면 만약 단일 패킷이 10 fragment일 경우 10 frame마다 1 패킷을 보내는 꼴이므로 전송 주기는 10 * 16.6ms = 166ms가 됨
-	// 만약 단일 틱에 n개의 fragment를 보낼 경우 이 딜레이는 10 * 16.6 / n ms가 되며,
-	// 틱당 2개를 보낸다 가정했을 경우 83ms로 주기가 더 짧아져 반응성이 높아짐.
 }
 
 void ANetHandler::GetPendingBuffer_UEServer(float DeltaTime)
@@ -416,18 +414,18 @@ void ANetHandler::RegisterSend_UEServer(float DeltaTime)
 	// fragment 몇 개 보내야 하는지 구함
 	int fragSendCount = TimePassedSinceLastFragmentSend / FragmentSendCycleTime;
 	TimePassedSinceLastFragmentSend = FMath::Max(TimePassedSinceLastFragmentSend - (FragmentSendCycleTime * fragSendCount), 0.0f);
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("fragment %i개 전송"), fragSendCount));
 	SendFragment_UEServer(DeltaTime, fragSendCount);
 }
 
 SD_GameState* ANetHandler::CreateNewGameStatePacket_UEServer(float DeltaTime)
 {
+	float currentTime = GetRovenhellGameInstance()->TickCounter->GetTime(GetWorld());
 	SD_GameState* GameState = new SD_GameState(
 		GetWorld()->GetGameState(),
-		GetRovenhellGameInstance()->TickCounter->GetTick()
+		currentTime
 	);
 
-	PacketTick = Cast<URovenhellGameInstance>(GetGameInstance())->TickCounter->GetTick();
+	PacketTimestamp = currentTime;
 
 	// 모든 플레이어들에 대해서 물리 정보를 갱신한다.
 	// TODO: 변경된 플레이어에 대해서만 정보를 보내는 것으로 패킷 크기 축소 가능
@@ -461,7 +459,7 @@ void ANetHandler::SendFragment_UEServer(float DeltaTime, int sendCount)
 		writeBuf->GetHeader()->senderId = Session->GetSessionId();
 		writeBuf->GetHeader()->protocol = PacketProtocol::LOGIC_EVENT;
 		writeBuf->GetHeader()->type = PacketType::GAME_STATE;
-		writeBuf->GetHeader()->senderTick = PacketTick;
+		writeBuf->GetHeader()->hostTime = PacketTimestamp;
 
 		if (Serializer->WriteDataToBuffer(writeBuf, Serializer->Array->GetData() + i, readDataSize))
 		{
@@ -472,7 +470,7 @@ void ANetHandler::SendFragment_UEServer(float DeltaTime, int sendCount)
 	if (i >= Serializer->Array->Num())
 	{
 		// Fragment 전부 전송 완료
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("패킷 전송 완료 (fragment 총 개수: %i)"), PacketFragmentCount));
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("GameStatePacket %i byte"), Serializer->Array->Num()));
 		OnAllFragmentsSent_UEServer(DeltaTime);
 	}
 }

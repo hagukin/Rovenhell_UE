@@ -10,7 +10,7 @@
 #include "InputActionValue.h"
 #include "ActorPhysicsSyncComponent.generated.h"
 
-#define MAX_PHYSICS_HISTORY_SIZE 240 // 기록할 수 있는 최대 틱 히스토리 범위
+#define MAX_PHYSICS_HISTORY_SIZE 120 // 기록할 수 있는 최대 틱 히스토리 범위
 
 struct ActorPhysics
 {
@@ -43,5 +43,6 @@ protected:
 
 private:
 	bool StartTicking = false;
-	const double ALLOWED_LOCATION_DIFFERENCE_WITH_SERVER = 10.0; // 단위 cm; 서버 보정이 지나치게 빈번하게 일어난다면 허용 오차 크기를 늘리는 것을 고려하자.
+	const double ALLOWED_LOCATION_DIFFERENCE_WITH_SERVER = 20.0; // 단위 cm; 서버 보정이 지나치게 빈번하게 일어난다면 허용 오차 크기를 늘리는 것을 고려하자.
+	// 멈춰서는 순간 오차는 다시 0에 수렴하게 되므로 이 값은 조금 널널하게 잡아도 괜찮다.
 };

@@ -15,7 +15,7 @@ struct PacketHeader
 	uint16 senderId; // 발신자와 연동된 세션의 세션 id
 	uint8 protocol; // 패킷 처리 방식
 	uint16 type; // 패킷 id
-	uint32 senderTick; // 이 패킷 발송자의 게임 틱; 없으면 0을 발송
+	float hostTime; // 해당 호스트의 시간
 };
 
 enum PacketType : uint16
