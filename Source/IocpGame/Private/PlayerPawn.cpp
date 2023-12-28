@@ -168,15 +168,27 @@ void APlayerPawn::SetAnimBranchToMoving()
 	bIsMoving = true;
 }
 
-void APlayerPawn::SetAnimTo(AnimStateEnum state, float value1D)
+void APlayerPawn::SetAnimTo(AnimStateEnum state, float delta1D)
 {
 	SetAnimStateTo(state); // state를 먼저 세팅해야 status가 올바르게 적용된다
-	SetAnimStatusTo(value1D);
+	ApplyAnimStatusDelta(delta1D);
 }
 
-void APlayerPawn::SetAnimStateTo(AnimStateEnum state)
+void APlayerPawn::SetAnimStateTo(AnimStateEnum state, bool isForced)
 {
 	if (state == CurrAnimState) return; // 동일
+	if (IsPuppet() && CurrAnimState == AnimStateEnum::MOVING)
+	{
+		// 퍼펫 애니메이션이 Move state이며 
+		// 현재 Movement interpolation을 처리하는 중일 경우,
+		// 다른 anim state로 전환하라는 요청을 무시한다
+		// 그렇게 하지 않을 경우 위치 이동은 일어나지만 애니메이션은 이동 외 애니메이션이 재생되어 부자연스러워 보일 수 있다
+		UNetPawnInterpComponent* interpComp = GetInterpComp();
+		if (interpComp != nullptr && !interpComp->IsMovePredictionQueueEmpty() && !isForced)
+		{
+			return;
+		}
+	}
 
 	// FSM 브랜치
  	switch (state)
@@ -198,13 +210,19 @@ void APlayerPawn::SetAnimStateTo(AnimStateEnum state)
 	CurrAnimState = state;
 }
 
-void APlayerPawn::SetAnimStatusTo(float value1D)
+void APlayerPawn::ApplyAnimStatusDelta(float delta1D)
 {
+	if (!IsPuppet())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("플레이어 폰의 경우 MovementComp를 사용해 애니메이션 blendspace의 값을 조정해야 합니다."));
+		return;
+	}
 	switch (CurrAnimState)
 	{
 		case AnimStateEnum::MOVING:
 		{
-			MovementStatus = value1D;
+			if (delta1D < 0) return; // 이동 애니메이션의 경우 move interpolation 처리를 고려해 status를 감소시키지 않는다
+			MovementStatus = FMath::Clamp(MovementStatus + delta1D, 0.f, MaxMovementStatus);
 			return;
 		}
 	}
@@ -221,6 +239,16 @@ float APlayerPawn::GetCurrentAnimStatus()
 		default:
 			return 0.0f; // blendspace를 사용하지 않는 경우 0.0 반환
 	}
+}
+
+float APlayerPawn::GetSavedAnimStatus()
+{
+	return SavedMovementStatus;
+}
+
+void APlayerPawn::SaveCurrentAnimStatus()
+{
+	SavedMovementStatus = MovementStatus;
 }
 
 void APlayerPawn::AddMovementStatus(float value)

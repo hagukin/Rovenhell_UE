@@ -147,10 +147,12 @@ void GameStateApplier::ApplyPlayerPhysicsOfHost_UEClient(APlayerPawn* hostPlayer
 
 void GameStateApplier::ApplyPlayerPhysicsOfPuppet_UEClient(APlayerPawn* puppetPlayer, SD_GameState* gameState, const SD_PawnPhysics& playerPhysics, ANetHandler* netHandler)
 {
-	// 최신 트랜스폼 정보 추가
+	// 트랜스폼이 변경되었을 경우에 한해 최신 트랜스폼 정보 추가
 	FTransform transform = playerPhysics.GetTransformFromData();
 	UNetPawnInterpComponent* interpComp = puppetPlayer->GetInterpComp();
-	if (interpComp)
+	if (interpComp
+		&& transform.GetLocation() != puppetPlayer->GetTransform().GetLocation() 
+		&& transform.GetRotation() != puppetPlayer->GetTransform().GetRotation())
 	{
 		interpComp->AddNewTransform(transform);
 		// 추가된 정보를 기반으로 움직임을 interpolate하는 과정은 해당 컴포넌트 틱에서 처리됨
@@ -187,7 +189,7 @@ void GameStateApplier::ApplyPlayerAnimationOfHost_UEClient(APlayerPawn* hostPlay
 
 void GameStateApplier::ApplyPlayerAnimationOfPuppet_UEClient(APlayerPawn* puppetPlayer, SD_PlayerState* playerState, ANetHandler* netHandler)
 {
-	puppetPlayer->SetAnimTo(AnimStateEnum(playerState->AnimState), playerState->AnimStatus1D);
+	puppetPlayer->SetAnimTo(AnimStateEnum(playerState->AnimState), playerState->AnimDelta1D);
 	return;
 }
 

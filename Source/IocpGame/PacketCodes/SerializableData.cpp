@@ -8,6 +8,10 @@ SD_PlayerState::SD_PlayerState(uint16 sessionId, APlayerPawn* player) : PlayerPh
 {
 	SessionId = sessionId;
 	AnimState = player->GetCurrentAnimState();
-	AnimStatus1D = player->GetCurrentAnimStatus();
+
+	// AnimState status delta 추출
+	AnimDelta1D = player->GetCurrentAnimStatus() - player->GetSavedAnimStatus();
+	player->SaveCurrentAnimStatus(); // 다음번 델타 추출을 위해 현재 값을 기록
+
 	// TODO: Hp 등 각종 정보 전달
 }

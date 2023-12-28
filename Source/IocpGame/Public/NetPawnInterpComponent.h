@@ -51,6 +51,7 @@ protected:
 public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	void AddNewTransform(FTransform transform); // 새 최신 transform 정보를 수신받았을 경우 이 함수를 호출해 추가해준다
+	const int IsMovePredictionQueueEmpty() { return MovePredictionQueue.IsEmpty(); }
 
 private:
 	float ApplyMovePrediction(float DeltaTime); // 입력받은 Move prediction 객체를 DeltaTime만큼 처리한다. 처리가 완료되었다면 소비하고 남은 DeltaTime을 반환한다.
@@ -63,6 +64,6 @@ private:
 	uint32 QueueSize = 0; // 단일 스레드에서만 접근하므로 Atomic 없이 사용 가능
 	float DeltaTimeMultiplier = 1.0f; // 큐가 적정치를 초과했을 경우 단일 틱에 여러 MovePrediction을 처리하기 위해 수신받은 델타타임의 크기를 증폭시켜서 여러 MovePrediction에 대한 처리를 가능케 한다
 	float TimeSinceLastNewTransform = 0.0f; // 마지막으로 새 트랜스폼을 등록한 이후 경과한 시간 (일반적인 경우 서버로부터 마지막으로 수신받은지 얼마나 시간이 흘렀는지를 의미)
-	bool bHasBegunMovePrediction = false; // interpolation을 시작했는지 (지금까지 서버로부터 1개 이상의 transform을 수신받았는지)
+	bool bHasBegunMovePrediction = false; // interpolation을 시작했는지 (게임을 실행한 이후 지금까지 서버로부터 1개 이상의 transform을 수신받았는지)
 	FTransform pendingTransform; // 마지막으로 서버로부터 수신받은 정보
 };

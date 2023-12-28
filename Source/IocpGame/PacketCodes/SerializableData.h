@@ -342,7 +342,7 @@ public:
 	{
 		Archive << Data.SessionId;
 		Archive << Data.AnimState;
-		Archive << Data.AnimStatus1D;
+		Archive << Data.AnimDelta1D;
 		Archive << Data.PlayerPhysics;
 		return Archive;
 	}
@@ -353,7 +353,7 @@ public:
 public:
 	uint16 SessionId = 0;
 	uint8 AnimState = AnimStateEnum::NO_ANIM;
-	float AnimStatus1D = 0.0f; // blendspace 싱크를 위해 전송하는 값; 2D blendspace 사용 시 하나 더 추가할 것
+	float AnimDelta1D = 0.0f; // blendspace 싱크를 위해 전송하는 값; 2D blendspace 사용 시 하나 더 추가할 것
 	SD_PawnPhysics PlayerPhysics;
 };
 

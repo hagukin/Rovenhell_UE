@@ -42,6 +42,6 @@ private:
 	float LocalTimePassed = 0.0f; // 마지막 서버 시간 수신 이후 경과한 시간
 	float LastServerTimestamp = 0.0f; // 마지막으로 수신한 서버 시간; 0.0f일 경우 아직 한 번도 수신받지 않았음을 의미함
 	float LastClientTimestamp = 0.0f; // 마지막으로 서버 시간을 수신했을 때의 클라이언트 시간
-	float PacketTripTime = 0.0f; // 서버에서 클라이언트까지 패킷이 도달하는데 걸리는 시간의 추측값
+	float PacketTripTime = 0.0f; // 서버에서 클라이언트까지 패킷이 도달하는데 걸리는 시간의 추측값; 클라이언트와 서버의 지연시간이 거의 없으면서 동시에 클라이언트의 게임 프레임이 서버보다 빠르면 음수가 나올 수 있다
 	bool CanGetTripTime = false; // 서버로부터 최소 1회 패킷을 수신받았는지 여부
 };

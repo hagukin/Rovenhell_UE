@@ -25,7 +25,8 @@ void ANetHandler::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	// DEBUG
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("time %f, tripTime %f"), GetRovenhellGameInstance()->TickCounter->GetTime(GetWorld()), GetRovenhellGameInstance()->TickCounter->GetPacketTripTime()));
+	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("time %f, tripTime %f"), GetRovenhellGameInstance()->TickCounter->GetTime(GetWorld()), GetRovenhellGameInstance()->TickCounter->GetPacketTripTime()));
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Synced clock time: %f"), GetRovenhellGameInstance()->TickCounter->GetTime(GetWorld())));
 
 	switch (HostType)
 	{
