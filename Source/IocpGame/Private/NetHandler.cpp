@@ -98,8 +98,7 @@ void ANetHandler::Init()
 	else if (HostType == HostTypeEnum::LOGIC_SERVER || HostType == HostTypeEnum::LOGIC_SERVER_HEADLESS)
 	{
 		port = 8888;
-		// TODO: HEADLESS 분리
-		GEngine->GameViewport->bDisableWorldRendering = 1;
+		if (HostType == HostTypeEnum::LOGIC_SERVER_HEADLESS) GEngine->GameViewport->bDisableWorldRendering = 1;
 	}
 	
 	NetAddress serverAddr(TEXT("127.0.0.1"), port); //////// TESTING

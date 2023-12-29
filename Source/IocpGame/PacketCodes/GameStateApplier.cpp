@@ -157,10 +157,6 @@ void GameStateApplier::ApplyPlayerPhysicsOfPuppet_UEClient(APlayerPawn* puppetPl
 		interpComp->AddNewTransform(transform);
 		// 추가된 정보를 기반으로 움직임을 interpolate하는 과정은 해당 컴포넌트 틱에서 처리됨
 	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("이 퍼펫 플레이어의 인풋 싱크 컴포넌트를 찾을 수 없습니다."));
-	}
 }
 
 void GameStateApplier::ApplyPlayerAnimation_UEClient(SD_PlayerState* playerState, ANetHandler* netHandler)
